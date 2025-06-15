@@ -223,45 +223,51 @@ local function getSackCount()
     return 0
 end
 
+-- MAIN LOOP
 local duration = 0.7
 
-::mainloop::
-for _, location in ipairs(goldbarLocations) do
-    if totalStoreCount >= maxStoreCount then break end
-    TPTo(location)
-    task.wait(0.2)
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if not runtime then continue end
-
-    -- Gather valuables at this location
-    local valuables = {}
-    for _, item in ipairs(runtime:GetChildren()) do
-        if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-            if (item.PrimaryPart.Position - location).Magnitude < 60 then
-                table.insert(valuables, item)
+while true do
+    -- 1. Scan all goldbar locations for valuables
+    local foundItems = {}
+    for _, location in ipairs(goldbarLocations) do
+        TPTo(location)
+        task.wait(0.2)
+        local runtime = Workspace:FindFirstChild("RuntimeItems")
+        if runtime then
+            for _, item in ipairs(runtime:GetChildren()) do
+                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                    table.insert(foundItems, item)
+                end
             end
         end
     end
 
-    -- Collect valuables at this location until sack is full or maxStoreCount
+    -- 2. If no items found or hit maxStoreCount, break and end script
+    if #foundItems == 0 or totalStoreCount >= maxStoreCount then
+        break
+    end
+
+    -- 3. Collect up to sackCapacity or until maxStoreCount is hit, always choosing the nearest item
     local collected = 0
-    while #valuables > 0 and collected < sackCapacity and totalStoreCount < maxStoreCount do
-        -- Find closest to current position
-        local closestIdx, closestDist = 1, math.huge
-        for i, item in ipairs(valuables) do
-            if item and item.Parent and item.PrimaryPart then
-                local d = (hrp.Position - item.PrimaryPart.Position).Magnitude
-                if d < closestDist then
-                    closestDist = d
-                    closestIdx = i
+    local currentPos = hrp.Position
+
+    local function findClosestItem(items, fromPos)
+        local closest, closestIdx, minDist = nil, nil, math.huge
+        for i, v in ipairs(items) do
+            if v and v.Parent and v.PrimaryPart then
+                local dist = (v.PrimaryPart.Position - fromPos).Magnitude
+                if dist < minDist then
+                    closest, closestIdx, minDist = v, i, dist
                 end
             end
         end
-        local itemToCollect = valuables[closestIdx]
-        if not itemToCollect or not itemToCollect.Parent or not itemToCollect.PrimaryPart then
-            table.remove(valuables, closestIdx)
-            continue
-        end
+        return closest, closestIdx
+    end
+
+    while collected < sackCapacity and #foundItems > 0 and totalStoreCount < maxStoreCount do
+        local itemToCollect, index = findClosestItem(foundItems, currentPos)
+        if not itemToCollect then break end
+
         local pos = itemToCollect.PrimaryPart.Position
         local dist = (hrp.Position - pos).Magnitude
         local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
@@ -282,33 +288,14 @@ for _, location in ipairs(goldbarLocations) do
         end
         collected = collected + 1
         totalStoreCount = totalStoreCount + 1
-        table.remove(valuables, closestIdx)
+        currentPos = pos
+        table.remove(foundItems, index)
         dropIfFull()
         task.wait(0.5)
-        if isFull() then break end
     end
-    dropIfFull()
-    if isFull() then break end
-end
 
--- Check if any valuables left anywhere and repeat if so
-local anyLeft = false
-for _, location in ipairs(goldbarLocations) do
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if runtime then
-        for _, item in ipairs(runtime:GetChildren()) do
-            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                if (item.PrimaryPart.Position - location).Magnitude < 60 then
-                    anyLeft = true
-                    break
-                end
-            end
-        end
-    end
-    if anyLeft then break end
-end
-if anyLeft and totalStoreCount < maxStoreCount then
-    goto mainloop
+    -- 4. Drop any leftovers in case not full
+    dropIfFull()
 end
 
 -- Final drop and cleanup
