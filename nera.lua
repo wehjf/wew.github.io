@@ -24,14 +24,13 @@ local goldbarLocations = {
 }
 
 local storageLocation = Vector3.new(57, 5, 30000)
-local wasStored = {}
 local sackCapacity = 10 -- Set to 15 if needed
 
-local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
 local hiding = false
 local pauseHiding = false
 
 local function isInRuntimeItems(instance)
+    local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
     if not runtimeItems then return false end
     return instance:IsDescendantOf(runtimeItems)
 end
@@ -160,18 +159,6 @@ local function UseSack()
     return false
 end
 
-local function getPos(model)
-    if model:IsA("Model") then
-        if model.PrimaryPart then
-            return model.PrimaryPart.Position
-        else
-            local part = model:FindFirstChildWhichIsA("BasePart")
-            if part then return part.Position end
-        end
-    end
-    return nil
-end
-
 local function FireStore(item)
     ReplicatedStorage.Remotes.StoreItem:FireServer(item)
 end
@@ -235,60 +222,68 @@ local function getSackCount()
     return 0
 end
 
--- Main collection loop: keeps going until maxStoreCount reached or no more items
-local totalStoreCount = 0
 local maxStoreCount = 40
+local totalStoreCount = 0
 local duration = 0.7
 
-while totalStoreCount < maxStoreCount do
-    -- Scan for new valuables at all locations
-    local foundItems = {}
+-- Build master valuables list (all item objects, not just positions)
+local valuables = {}
+
+for _, location in ipairs(goldbarLocations) do
+    TPTo(location)
+    task.wait(0.2)
     local runtime = Workspace:FindFirstChild("RuntimeItems")
-    for _, location in ipairs(goldbarLocations) do
-        TPTo(location)
-        task.wait(0.2)
-        runtime = Workspace:FindFirstChild("RuntimeItems")
-        if runtime then
-            for _, item in ipairs(runtime:GetChildren()) do
-                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                    local pos = item.PrimaryPart.Position
-                    if (pos - location).Magnitude < 500 and not wasStored[item] then
-                        table.insert(foundItems, item)
-                    end
-                end
+    if runtime then
+        for _, item in ipairs(runtime:GetChildren()) do
+            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                -- Track item object, NOT just position, for live existence checks
+                valuables[item] = {
+                    model = item,
+                    pos = item.PrimaryPart.Position
+                }
             end
         end
     end
+end
 
-    if #foundItems == 0 then break end -- nothing left to collect
-
-    for i = #foundItems, 1, -1 do
-        local itemToCollect = foundItems[i]
-        local pos = itemToCollect.PrimaryPart.Position
-        local dist = (hrp.Position - pos).Magnitude
-        local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
-        if dist <= 15 then
-            UseSack()
-            FireStore(itemToCollect)
-        elseif dist <= 500 then
-            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-            tween:Play()
-            tween.Completed:Wait()
-            UseSack()
-            FireStore(itemToCollect)
-        else
-            TPTo(targetPos)
-            UseSack()
-            FireStore(itemToCollect)
-        end
-        wasStored[itemToCollect] = true
-        totalStoreCount = totalStoreCount + 1
-        dropIfFull()
-        task.wait(0.5)
+-- Main collection loop: while there's valuables and not at maxStoreCount
+while next(valuables) and totalStoreCount < maxStoreCount do
+    local collectedThisRound = 0
+    for item, data in pairs(valuables) do
         if totalStoreCount >= maxStoreCount then break end
+        -- Check if item still exists and has PrimaryPart
+        if data.model and data.model.Parent and data.model.PrimaryPart then
+            local pos = data.model.PrimaryPart.Position
+            local dist = (hrp.Position - pos).Magnitude
+            local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
+            if dist <= 15 then
+                UseSack()
+                FireStore(data.model)
+            elseif dist <= 500 then
+                local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                tween:Play()
+                tween.Completed:Wait()
+                UseSack()
+                FireStore(data.model)
+            else
+                TPTo(targetPos)
+                UseSack()
+                FireStore(data.model)
+            end
+            -- Remove from valuables after collecting
+            valuables[item] = nil
+            totalStoreCount = totalStoreCount + 1
+            collectedThisRound = collectedThisRound + 1
+            dropIfFull()
+            task.wait(0.5)
+        else
+            -- Item no longer exists, remove from valuables
+            valuables[item] = nil
+        end
+        if isFull() then break end
     end
-    -- Drop any leftovers
+    -- Drop any leftovers after this round
     dropIfFull()
 end
 
