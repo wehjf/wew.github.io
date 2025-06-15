@@ -1,11 +1,14 @@
 local plrs = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local plr = plrs.LocalPlayer
 local character = plr.Character or plr.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid")
 
+local CHAIR_POS = Vector3.new(57, -5, -9000)
 local positions = {
-    Vector3.new(57, -5, -9000),
+    CHAIR_POS,
     Vector3.new(57, -5, 21959),
     Vector3.new(57, -5, 13973),
     Vector3.new(57, -5, 6025),
@@ -13,11 +16,72 @@ local positions = {
     Vector3.new(57, -5, -25870),
     Vector3.new(57, -5, -33844),
     Vector3.new(57, -5, -9020)
-
 }
-
 local oldPos = hrp.Position
 local wasStored = {}
+
+local function isUnanchored(model)
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and part.Anchored then
+            return false
+        end
+    end
+    return true
+end
+
+local function findNearestValidChair(origin)
+    local runtimeFolder = Workspace:FindFirstChild("RuntimeItems")
+    if not runtimeFolder then return nil end
+    local closestSeat, shortest = nil, math.huge
+    for _, item in pairs(runtimeFolder:GetChildren()) do
+        if item:IsA("Model") and item.Name == "Chair" and isUnanchored(item) then
+            local seat = item:FindFirstChildWhichIsA("Seat", true)
+            if seat and not seat.Occupant then
+                local dist = (origin - seat.Position).Magnitude
+                if dist <= 300 and dist < shortest then
+                    closestSeat = seat
+                    shortest = dist
+                end
+            end
+        end
+    end
+    return closestSeat
+end
+
+local function sitAndJumpOutChair(seat)
+    local jumped = false
+    while true do
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame
+            task.wait(0.1)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(character) then
+                if not jumped then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.15)
+                    hrp.CFrame = seat.CFrame
+                    jumped = true
+                else
+                    break
+                end
+            end
+        end
+    end
+end
+
+-- 1. Go to chair position, find & sit on chair, jump out
+local function sitOnChairAtStart()
+    hrp.CFrame = CFrame.new(CHAIR_POS)
+    task.wait(1)
+    local chair = findNearestValidChair(CHAIR_POS)
+    if chair then
+        sitAndJumpOutChair(chair)
+        task.wait(0.4)
+    end
+end
+
+-- --- GOLD LOGIC (your original logic, unchanged) ---
 
 local function UseSack()
     local sack = plr.Backpack:FindFirstChild("Sack")
@@ -61,7 +125,7 @@ end
 
 local function FindGold()
     local golds = {}
-    for _, item in ipairs(workspace.RuntimeItems:GetChildren()) do
+    for _, item in ipairs(Workspace.RuntimeItems:GetChildren()) do
         if item.Name == "GoldBar" and not wasStored[item] then
             table.insert(golds, item)
         end
@@ -86,10 +150,10 @@ end
 
 local function FireDrop(count)
     for _ = 1, count do
-        local before = workspace.RuntimeItems:GetChildren()
+        local before = Workspace.RuntimeItems:GetChildren()
         ReplicatedStorage.Remotes.DropItem:FireServer()
         task.wait(0.1)
-        local after = workspace.RuntimeItems:GetChildren()
+        local after = Workspace.RuntimeItems:GetChildren()
         for _, item in ipairs(after) do
             if item.Name == "GoldBar" and not table.find(before, item) then
                 wasStored[item] = true
@@ -155,12 +219,13 @@ local function CheckBanks(towns, pos)
     end
 end
 
+-- *** MAIN EXECUTION ***
+sitOnChairAtStart()
+
 for i, pos in ipairs(positions) do
     TPTo(pos)
-
-    local towns = workspace:FindFirstChild("Towns")
+    local towns = Workspace:FindFirstChild("Towns")
     if not towns then continue end
-
     CheckBanks(towns, pos)
 end
 
