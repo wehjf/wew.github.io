@@ -25,7 +25,7 @@ local goldbarLocations = {
 
 local storageLocation = Vector3.new(57, 5, 30000)
 local sackCapacity = 10
-local maxStoreCount = 80
+local maxStoreCount = 40
 local totalStoreCount = 0
 local hiding = false
 local pauseHiding = false
