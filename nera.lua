@@ -25,7 +25,8 @@ local goldbarLocations = {
 
 local storageLocation = Vector3.new(57, 5, 30000)
 local sackCapacity = 10 -- Set to 15 if needed
-
+local maxStoreCount = 40
+local totalStoreCount = 0
 local hiding = false
 local pauseHiding = false
 
@@ -222,60 +223,62 @@ local function getSackCount()
     return 0
 end
 
-local maxStoreCount = 40
-local totalStoreCount = 0
+-- MAIN LOOP
 local duration = 0.7
 
--- 1. Build valuables list ONCE at the start
-local valuables = {}
-
-for _, location in ipairs(goldbarLocations) do
-    TPTo(location)
-    task.wait(0.2)
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if runtime then
-        for _, item in ipairs(runtime:GetChildren()) do
-            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                valuables[item] = item -- store reference for later
+while true do
+    -- 1. Scan all goldbar locations for valuables
+    local foundItems = {}
+    for _, location in ipairs(goldbarLocations) do
+        TPTo(location)
+        task.wait(0.2)
+        local runtime = Workspace:FindFirstChild("RuntimeItems")
+        if runtime then
+            for _, item in ipairs(runtime:GetChildren()) do
+                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                    table.insert(foundItems, item)
+                end
             end
         end
     end
-end
 
--- 2. Main collection loop: only ends when valuables is empty or max reached
-while next(valuables) and totalStoreCount < maxStoreCount do
-    for item, ref in pairs(valuables) do
-        if totalStoreCount >= maxStoreCount then break end
-        -- skip if gone
-        if not ref or not ref.Parent or not ref.PrimaryPart then
-            valuables[item] = nil
-        else
-            local pos = ref.PrimaryPart.Position
+    -- 2. If no items found or hit maxStoreCount, break and end script
+    if #foundItems == 0 or totalStoreCount >= maxStoreCount then
+        break
+    end
+
+    -- 3. Collect up to sackCapacity or until maxStoreCount is hit
+    local collected = 0
+    for i = #foundItems, 1, -1 do
+        if collected >= sackCapacity or totalStoreCount >= maxStoreCount then break end
+        local itemToCollect = foundItems[i]
+        if itemToCollect and itemToCollect.Parent and itemToCollect.PrimaryPart then
+            local pos = itemToCollect.PrimaryPart.Position
             local dist = (hrp.Position - pos).Magnitude
             local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
             if dist <= 15 then
                 UseSack()
-                FireStore(ref)
+                FireStore(itemToCollect)
             elseif dist <= 500 then
                 local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
                 local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
                 tween:Play()
                 tween.Completed:Wait()
                 UseSack()
-                FireStore(ref)
+                FireStore(itemToCollect)
             else
                 TPTo(targetPos)
                 UseSack()
-                FireStore(ref)
+                FireStore(itemToCollect)
             end
-            valuables[item] = nil
+            collected = collected + 1
             totalStoreCount = totalStoreCount + 1
             dropIfFull()
             task.wait(0.5)
-            if isFull() then break end
         end
     end
-    -- Drop leftovers if sack wasn't full but there's a few left
+
+    -- 4. Drop any leftovers in case not full
     dropIfFull()
 end
 
