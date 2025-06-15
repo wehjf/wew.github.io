@@ -13,9 +13,19 @@ local targetNames = {
     "GoldStatue", "SilverStatue", "BrainJar"
 }
 
+local goldbarLocations = {
+    Vector3.new(57, -5, -9000),
+    Vector3.new(57, -5, 21959),
+    Vector3.new(57, -5, 13973),
+    Vector3.new(57, -5, 6025),
+    Vector3.new(57, -5, -17737),
+    Vector3.new(57, -5, -25870),
+    Vector3.new(57, -5, -33844),
+}
+
 local storageLocation = Vector3.new(57, 5, 30000)
 local wasStored = {}
-local sackCapacity = 10 -- Set to 15 if needed
+local sackCapacity = 10
 
 local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
 local hiding = false
@@ -37,27 +47,6 @@ local function hideVisuals(instance)
         instance.Enabled = false
     end
 end
-
-task.spawn(function()
-    task.wait(10) -- Wait for 120 seconds before executing
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-end)
-
-
-
--- Coroutine for hiding visuals
-coroutine.wrap(function()
-    task.wait(10)
-    hiding = true
-    while hiding do
-        if not pauseHiding then
-            for _, instance in ipairs(Workspace:GetDescendants()) do
-                hideVisuals(instance)
-            end
-        end
-        task.wait(1)
-    end
-end)()
 
 local function unhideAllVisuals()
     local player = Players.LocalPlayer
@@ -86,62 +75,37 @@ local function unhideAllVisuals()
     end
 end
 
+coroutine.wrap(function()
+    task.wait(10)
+    hiding = true
+    while hiding do
+        if not pauseHiding then
+            for _, instance in ipairs(Workspace:GetDescendants()) do
+                hideVisuals(instance)
+            end
+        end
+        task.wait(1)
+    end
+end)()
+
 local function TPTo(position)
     pcall(function()
         hrp.CFrame = CFrame.new(position)
     end)
-    task.wait(0.6)
+    task.wait(0.4)
 end
 
-local function DestroyCase()
-    local castle = Workspace:FindFirstChild("VampireCastle")
-    if castle then
-        for _, descendant in ipairs(castle:GetDescendants()) do
-            if descendant:IsA("Model") and descendant.Name == "Bookcase" then
-                descendant:Destroy()
-            end
+local function TPToAndVerify(position, maxAttempts, epsilon)
+    maxAttempts = maxAttempts or 6
+    epsilon = epsilon or 8
+    for i = 1, maxAttempts do
+        TPTo(position)
+        if (hrp.Position - position).Magnitude <= epsilon then
+            return true
         end
+        task.wait(0.3)
     end
-end
-
-local function getSeat()
-    DestroyCase()
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if not runtime then return nil end
-    for _, gun in ipairs(runtime:GetChildren()) do
-        if gun.Name == "MaximGun" then
-            local seat = gun:FindFirstChildWhichIsA("VehicleSeat")
-            if seat then return seat end
-        end
-    end
-    return nil
-end
-
-local function SitSeat(seat)
-    local jumped = false
-    while true do
-        if humanoid.SeatPart ~= seat then
-            hrp.CFrame = seat.CFrame
-            task.wait(0.1)
-        else
-            local weld = seat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
-                if not jumped then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    task.wait(0.15)
-                    hrp.CFrame = seat.CFrame
-                    jumped = true
-                else
-                    break
-                end
-            else
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                task.wait(0.2)
-                jumped = false
-            end
-        end
-        task.wait(0.05)
-    end
+    return (hrp.Position - position).Magnitude <= epsilon
 end
 
 local function UseSack()
@@ -151,30 +115,6 @@ local function UseSack()
         return true
     end
     return false
-end
-
-local function getPos(model)
-    if model:IsA("Model") then
-        if model.PrimaryPart then
-            return model.PrimaryPart.Position
-        else
-            local part = model:FindFirstChildWhichIsA("BasePart")
-            if part then return part.Position end
-        end
-    end
-    return nil
-end
-
-local function FindGold()
-    local golds = {}
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if not runtime then return golds end
-    for _, item in ipairs(runtime:GetChildren()) do
-        if table.find(targetNames, item.Name) and not wasStored[item] then
-            table.insert(golds, item)
-        end
-    end
-    return golds
 end
 
 local function FireStore(item)
@@ -212,81 +152,40 @@ local function dropIfFull()
     end
 end
 
-while true do
-    local seat = getSeat()
-    if not seat then
-        TPTo(Vector3.new(57, -5, -9000))
-        task.wait(0.5)
-        continue
-    end
-    seat.Disabled = false
-    SitSeat(seat)
-    break
-end
-
-task.wait(1)
-UseSack()
-
-local foundItems = {}
-
-local function alreadyTracked(pos)
-    for _, v in ipairs(foundItems) do
-        if (v - pos).Magnitude < 1 then
-            return true
+local function getPos(model)
+    if model:IsA("Model") then
+        if model.PrimaryPart then
+            return model.PrimaryPart.Position
+        else
+            local part = model:FindFirstChildWhichIsA("BasePart")
+            if part then return part.Position end
         end
     end
-    return false
+    return nil
 end
 
-local x, y = 57, 3
-local startZ, endZ, stepZ = 30000, -49032.99, -2000
-local duration = 0.7
-
-local function scanForValuables()
+-- Gather valuables near all goldbar locations
+local foundItems = {}
+for _, location in ipairs(goldbarLocations) do
+    TPTo(location)
+    task.wait(0.2)
     local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if not runtime then return end
-    for _, item in ipairs(runtime:GetChildren()) do
-        if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-            local pos = item.PrimaryPart.Position
-            if typeof(pos) == "Vector3" and not alreadyTracked(pos) then
-                table.insert(foundItems, pos)
+    if runtime then
+        for _, item in ipairs(runtime:GetChildren()) do
+            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                local pos = item.PrimaryPart.Position
+                if (pos - location).Magnitude < 50 then -- within 50 studs of the location
+                    table.insert(foundItems, pos)
+                end
             end
         end
     end
 end
 
-local function tweenMovementAndTrack()
-    local currentZ = startZ
-    while currentZ >= endZ do
-        local startCFrame = CFrame.new(x, y, currentZ)
-        local endCFrame = CFrame.new(x, y, currentZ + stepZ)
-
-        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = endCFrame})
-        tween:Play()
-
-        local tweenRunning = true
-        local conn = nil
-        conn = game:GetService("RunService").Heartbeat:Connect(function()
-            if tweenRunning then scanForValuables() end
-        end)
-
-        tween.Completed:Wait()
-        tweenRunning = false
-        if conn then conn:Disconnect() end
-
-        currentZ = currentZ + stepZ
-    end
-end
-
-local success, errorMessage = pcall(tweenMovementAndTrack)
-if not success then
-    warn("Error in tweenMovement: " .. errorMessage)
-end
-
 -- Limit of 40 stores, then drop and end
 local storeCount = 0
 local reachedLimit = false
+local duration = 0.7
 
 while #foundItems > 0 and not reachedLimit do
     for i = #foundItems, 1, -1 do
@@ -332,7 +231,7 @@ while #foundItems > 0 and not reachedLimit do
             table.remove(foundItems, i)
         end
     end
-    scanForValuables()
+    -- Optionally, you can re-scan for new valuables at locations here
 end
 
 local function getSackCount()
@@ -349,16 +248,20 @@ end
 
 -- After reaching limit, drop everything and unhide visuals, then end script
 if storeCount >= 40 then
-    TPTo(storageLocation)
-    local itemCount = getSackCount()
-    if itemCount and itemCount > 0 then
-        FireDrop(itemCount)
+    local tpSuccess = TPToAndVerify(storageLocation, 6, 8)
+    if tpSuccess then
+        local itemCount = getSackCount()
+        if itemCount and itemCount > 0 then
+            FireDrop(itemCount)
+        end
+        hiding = false
+        unhideAllVisuals()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
+        task.wait(0.3)
+        return -- end script
+    else
+        warn("Failed to TP to storageLocation for ending script. Script not ended, try again.")
     end
-    hiding = false
-    unhideAllVisuals()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-    task.wait(0.3)
-    return -- end script
 end
 
 dropIfFull()
