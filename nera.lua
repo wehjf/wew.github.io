@@ -226,7 +226,7 @@ local maxStoreCount = 40
 local totalStoreCount = 0
 local duration = 0.7
 
--- Build master valuables list (all item objects, not just positions)
+-- 1. Build valuables list ONCE at the start
 local valuables = {}
 
 for _, location in ipairs(goldbarLocations) do
@@ -236,54 +236,46 @@ for _, location in ipairs(goldbarLocations) do
     if runtime then
         for _, item in ipairs(runtime:GetChildren()) do
             if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                -- Track item object, NOT just position, for live existence checks
-                valuables[item] = {
-                    model = item,
-                    pos = item.PrimaryPart.Position
-                }
+                valuables[item] = item -- store reference for later
             end
         end
     end
 end
 
--- Main collection loop: while there's valuables and not at maxStoreCount
+-- 2. Main collection loop: only ends when valuables is empty or max reached
 while next(valuables) and totalStoreCount < maxStoreCount do
-    local collectedThisRound = 0
-    for item, data in pairs(valuables) do
+    for item, ref in pairs(valuables) do
         if totalStoreCount >= maxStoreCount then break end
-        -- Check if item still exists and has PrimaryPart
-        if data.model and data.model.Parent and data.model.PrimaryPart then
-            local pos = data.model.PrimaryPart.Position
+        -- skip if gone
+        if not ref or not ref.Parent or not ref.PrimaryPart then
+            valuables[item] = nil
+        else
+            local pos = ref.PrimaryPart.Position
             local dist = (hrp.Position - pos).Magnitude
             local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
             if dist <= 15 then
                 UseSack()
-                FireStore(data.model)
+                FireStore(ref)
             elseif dist <= 500 then
                 local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
                 local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
                 tween:Play()
                 tween.Completed:Wait()
                 UseSack()
-                FireStore(data.model)
+                FireStore(ref)
             else
                 TPTo(targetPos)
                 UseSack()
-                FireStore(data.model)
+                FireStore(ref)
             end
-            -- Remove from valuables after collecting
             valuables[item] = nil
             totalStoreCount = totalStoreCount + 1
-            collectedThisRound = collectedThisRound + 1
             dropIfFull()
             task.wait(0.5)
-        else
-            -- Item no longer exists, remove from valuables
-            valuables[item] = nil
+            if isFull() then break end
         end
-        if isFull() then break end
     end
-    -- Drop any leftovers after this round
+    -- Drop leftovers if sack wasn't full but there's a few left
     dropIfFull()
 end
 
