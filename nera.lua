@@ -24,14 +24,16 @@ local goldbarLocations = {
 }
 
 local storageLocation = Vector3.new(57, 5, 30000)
-local sackCapacity = 10 -- or 15 if needed
-local maxStoreCount = 40
+local sackCapacity = 10
+local maxStoreCount = 80
 local totalStoreCount = 0
-local hiding, pauseHiding = false, false
+local hiding = false
+local pauseHiding = false
 
 local function isInRuntimeItems(instance)
     local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
-    return runtimeItems and instance:IsDescendantOf(runtimeItems)
+    if not runtimeItems then return false end
+    return instance:IsDescendantOf(runtimeItems)
 end
 
 local function hideVisuals(instance)
@@ -67,9 +69,11 @@ end)()
 local function unhideAllVisuals()
     local player = Players.LocalPlayer
     local radius = 2000
+
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local origin = character.HumanoidRootPart.Position
+
         for _, instance in ipairs(workspace:GetDescendants()) do
             if instance:IsA("BasePart") and (instance.Position - origin).Magnitude <= radius then
                 instance.LocalTransparencyModifier = 0
@@ -219,105 +223,91 @@ local function getSackCount()
     return 0
 end
 
--- MAIN LOOP
 local duration = 0.7
-local done = false
+::mainloop::
+for _, location in ipairs(goldbarLocations) do
+    if totalStoreCount >= maxStoreCount then break end
+    TPTo(location)
+    task.wait(0.2)
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    if not runtime then continue end
 
-while not done do
-    for _, location in ipairs(goldbarLocations) do
-        if totalStoreCount >= maxStoreCount then
-            done = true
-            break
+    -- Gather valuables at this location
+    local valuables = {}
+    for _, item in ipairs(runtime:GetChildren()) do
+        if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+            if (item.PrimaryPart.Position - location).Magnitude < 60 then
+                table.insert(valuables, item)
+            end
         end
-        TPTo(location)
-        task.wait(0.2)
-        local runtime = Workspace:FindFirstChild("RuntimeItems")
-        local itemsAtThisLocation = {}
-        if runtime then
-            for _, item in ipairs(runtime:GetChildren()) do
-                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                    if (item.PrimaryPart.Position - location).Magnitude < 60 then
-                        table.insert(itemsAtThisLocation, item)
-                    end
+    end
+
+    -- Collect valuables at this location until sack is full or maxStoreCount
+    local collected = 0
+    while #valuables > 0 and collected < sackCapacity and totalStoreCount < maxStoreCount do
+        -- Find closest to current position
+        local closestIdx, closestDist = 1, math.huge
+        for i, item in ipairs(valuables) do
+            if item and item.Parent and item.PrimaryPart then
+                local d = (hrp.Position - item.PrimaryPart.Position).Magnitude
+                if d < closestDist then
+                    closestDist = d
+                    closestIdx = i
                 end
             end
         end
-        if #itemsAtThisLocation == 0 then
+        local itemToCollect = valuables[closestIdx]
+        if not itemToCollect or not itemToCollect.Parent or not itemToCollect.PrimaryPart then
+            table.remove(valuables, closestIdx)
             continue
         end
-        local collected = 0
-        while #itemsAtThisLocation > 0 and collected < sackCapacity and totalStoreCount < maxStoreCount do
-            local closestIdx, closestDist = 1, math.huge
-            for i, item in ipairs(itemsAtThisLocation) do
-                if item and item.Parent and item.PrimaryPart then
-                    local d = (hrp.Position - item.PrimaryPart.Position).Magnitude
-                    if d < closestDist then
-                        closestDist = d
-                        closestIdx = i
-                    end
-                end
-            end
-            local itemToCollect = itemsAtThisLocation[closestIdx]
-            if not itemToCollect or not itemToCollect.Parent or not itemToCollect.PrimaryPart then
-                table.remove(itemsAtThisLocation, closestIdx)
-                continue
-            end
-            local pos = itemToCollect.PrimaryPart.Position
-            local dist = (hrp.Position - pos).Magnitude
-            local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
-            if dist <= 15 then
-                UseSack()
-                FireStore(itemToCollect)
-            elseif dist <= 500 then
-                local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-                tween:Play()
-                tween.Completed:Wait()
-                UseSack()
-                FireStore(itemToCollect)
-            else
-                TPTo(targetPos)
-                UseSack()
-                FireStore(itemToCollect)
-            end
-            collected = collected + 1
-            totalStoreCount = totalStoreCount + 1
-            table.remove(itemsAtThisLocation, closestIdx)
-            dropIfFull()
-            task.wait(0.5)
-            if isFull() then break end
+        local pos = itemToCollect.PrimaryPart.Position
+        local dist = (hrp.Position - pos).Magnitude
+        local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
+        if dist <= 15 then
+            UseSack()
+            FireStore(itemToCollect)
+        elseif dist <= 500 then
+            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+            tween:Play()
+            tween.Completed:Wait()
+            UseSack()
+            FireStore(itemToCollect)
+        else
+            TPTo(targetPos)
+            UseSack()
+            FireStore(itemToCollect)
         end
+        collected = collected + 1
+        totalStoreCount = totalStoreCount + 1
+        table.remove(valuables, closestIdx)
         dropIfFull()
-        if isFull() then
-            break
-        end
+        task.wait(0.5)
+        if isFull() then break end
     end
+    dropIfFull()
+    if isFull() then break end
+end
 
-    -- After all locations, check if we're done
-    if totalStoreCount >= maxStoreCount then
-        done = true
-        break
-    end
-
-    -- Check if there are any valuables left anywhere
-    local anyLeft = false
-    for _, location in ipairs(goldbarLocations) do
-        local runtime = Workspace:FindFirstChild("RuntimeItems")
-        if runtime then
-            for _, item in ipairs(runtime:GetChildren()) do
-                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                    if (item.PrimaryPart.Position - location).Magnitude < 60 then
-                        anyLeft = true
-                        break
-                    end
+-- Check if any valuables left anywhere and repeat if so
+local anyLeft = false
+for _, location in ipairs(goldbarLocations) do
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    if runtime then
+        for _, item in ipairs(runtime:GetChildren()) do
+            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                if (item.PrimaryPart.Position - location).Magnitude < 60 then
+                    anyLeft = true
+                    break
                 end
             end
         end
-        if anyLeft then break end
     end
-    if not anyLeft then
-        done = true
-    end
+    if anyLeft then break end
+end
+if anyLeft and totalStoreCount < maxStoreCount then
+    goto mainloop
 end
 
 -- Final drop and cleanup
