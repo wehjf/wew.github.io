@@ -24,7 +24,7 @@ local goldbarLocations = {
 }
 
 local storageLocation = Vector3.new(57, 5, 30000)
-local sackCapacity = 10 -- Set to 15 if needed
+local sackCapacity = 10
 local maxStoreCount = 80
 local totalStoreCount = 0
 local hiding = false
@@ -247,35 +247,51 @@ while true do
         break
     end
 
-    -- 3. Collect up to sackCapacity or until maxStoreCount is hit
+    -- 3. Collect up to sackCapacity or until maxStoreCount is hit, always choosing the nearest item
     local collected = 0
-    for i = #foundItems, 1, -1 do
-        if collected >= sackCapacity or totalStoreCount >= maxStoreCount then break end
-        local itemToCollect = foundItems[i]
-        if itemToCollect and itemToCollect.Parent and itemToCollect.PrimaryPart then
-            local pos = itemToCollect.PrimaryPart.Position
-            local dist = (hrp.Position - pos).Magnitude
-            local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
-            if dist <= 15 then
-                UseSack()
-                FireStore(itemToCollect)
-            elseif dist <= 500 then
-                local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-                tween:Play()
-                tween.Completed:Wait()
-                UseSack()
-                FireStore(itemToCollect)
-            else
-                TPTo(targetPos)
-                UseSack()
-                FireStore(itemToCollect)
+    local currentPos = hrp.Position
+
+    local function findClosestItem(items, fromPos)
+        local closest, closestIdx, minDist = nil, nil, math.huge
+        for i, v in ipairs(items) do
+            if v and v.Parent and v.PrimaryPart then
+                local dist = (v.PrimaryPart.Position - fromPos).Magnitude
+                if dist < minDist then
+                    closest, closestIdx, minDist = v, i, dist
+                end
             end
-            collected = collected + 1
-            totalStoreCount = totalStoreCount + 1
-            dropIfFull()
-            task.wait(0.5)
         end
+        return closest, closestIdx
+    end
+
+    while collected < sackCapacity and #foundItems > 0 and totalStoreCount < maxStoreCount do
+        local itemToCollect, index = findClosestItem(foundItems, currentPos)
+        if not itemToCollect then break end
+
+        local pos = itemToCollect.PrimaryPart.Position
+        local dist = (hrp.Position - pos).Magnitude
+        local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
+        if dist <= 15 then
+            UseSack()
+            FireStore(itemToCollect)
+        elseif dist <= 500 then
+            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+            tween:Play()
+            tween.Completed:Wait()
+            UseSack()
+            FireStore(itemToCollect)
+        else
+            TPTo(targetPos)
+            UseSack()
+            FireStore(itemToCollect)
+        end
+        collected = collected + 1
+        totalStoreCount = totalStoreCount + 1
+        currentPos = pos
+        table.remove(foundItems, index)
+        dropIfFull()
+        task.wait(0.5)
     end
 
     -- 4. Drop any leftovers in case not full
