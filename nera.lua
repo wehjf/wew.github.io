@@ -8,110 +8,14 @@ local character = plr.Character or plr.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
-local runtime = Workspace:WaitForChild("RuntimeItems")
-local tesla = Workspace:WaitForChild("TeslaLab"):WaitForChild("Generator")
-
-hrp.CFrame = tesla:GetPivot() + Vector3.new(0,5,0)
-hrp.Anchored = true
-task.wait(2)
-hrp.Anchored = false
-
--- SITTING LOGIC (runs in parallel)
-local sitting_done = false
-spawn(function()
-    local function orderedSeats()
-        local seats, pos = {}, hrp.Position
-        for _,m in ipairs(runtime:GetChildren()) do
-            if m:IsA("Model") and m.Name == "Chair" then
-                local s = m:FindFirstChildOfClass("Seat")
-                if s and not s.Occupant then
-                    table.insert(seats, {s=s, d=(s.Position-pos).Magnitude})
-                end
-            end
-        end
-        table.sort(seats, function(a,b) return a.d < b.d end)
-        return seats
-    end
-
-    local function sitOn(seat)
-        hrp.Anchored=true
-        hrp.CFrame=seat.CFrame+Vector3.new(0,3,0)
-        task.wait(0.2)
-        hrp.Anchored=false
-        task.wait(0.35)
-        seat:Sit(humanoid)
-    end
-
-    local usedChairs = {}
-    local function stableSatCheck(startPos)
-        local stable = false
-        local threshold = 5
-        local duration = 1 -- seconds
-        local interval = 0.1
-        local timeStable = 0
-        local lastPos = hrp.Position
-        for _ = 1, math.floor(duration / interval) do
-            task.wait(interval)
-            local currPos = hrp.Position
-            if (currPos - startPos).Magnitude > threshold then
-                if (currPos - lastPos).Magnitude < 1 then
-                    timeStable = timeStable + interval
-                else
-                    timeStable = 0
-                end
-            else
-                timeStable = 0
-            end
-            lastPos = currPos
-            if timeStable >= 0.5 then
-                stable = true
-                break
-            end
-        end
-        return stable
-    end
-
-    local hasSat = false
-    while not hasSat do
-        local seats = orderedSeats()
-        local found = false
-        for _,v in ipairs(seats) do
-            if not usedChairs[v.s] then
-                humanoid.Sit = false
-                task.wait(0.2)
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                task.wait(0.3)
-                local startPos = hrp.Position
-                sitOn(v.s)
-                if stableSatCheck(startPos) then
-                    hasSat = true
-                    break
-                else
-                    usedChairs[v.s] = true
-                end
-                found = true
-                break
-            end
-        end
-        if not found then
-            usedChairs = {}
-        end
-        task.wait(2)
-    end
-    sitting_done = true
-end)
-
--- Wait 5 seconds (regardless of sitting)
-task.wait(5)
-
--- ----------- VALUABLE FARM LOGIC -----------
 local targetNames = {
     "GoldBar", "SilverBar", "Crucifix",
     "GoldStatue", "SilverStatue", "BrainJar"
 }
+
 local storageLocation = Vector3.new(57, 5, 30000)
 local wasStored = {}
-local sackCapacity = 10
+local sackCapacity = 10 -- Set to 15 if needed
 
 local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
 local hiding = false
@@ -134,6 +38,14 @@ local function hideVisuals(instance)
     end
 end
 
+task.spawn(function()
+    task.wait(10) -- Wait for 120 seconds before executing
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+end)
+
+
+
+-- Coroutine for hiding visuals
 coroutine.wrap(function()
     task.wait(10)
     hiding = true
@@ -147,11 +59,89 @@ coroutine.wrap(function()
     end
 end)()
 
+local function unhideAllVisuals()
+    local player = Players.LocalPlayer
+    local radius = 2000 -- Adjust as needed
+
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local origin = character.HumanoidRootPart.Position
+
+        for _, instance in ipairs(workspace:GetDescendants()) do
+            if instance:IsA("BasePart") and (instance.Position - origin).Magnitude <= radius then
+                instance.LocalTransparencyModifier = 0
+                instance.CanCollide = true
+            elseif (instance:IsA("Decal") or instance:IsA("Texture")) and instance:IsDescendantOf(workspace) then
+                local parent = instance.Parent
+                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
+                    instance.Transparency = 0
+                end
+            elseif (instance:IsA("Beam") or instance:IsA("Trail")) and instance:IsDescendantOf(workspace) then
+                local parent = instance.Parent
+                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
+                    instance.Enabled = true
+                end
+            end
+        end
+    end
+end
+
 local function TPTo(position)
     pcall(function()
         hrp.CFrame = CFrame.new(position)
     end)
     task.wait(0.6)
+end
+
+local function DestroyCase()
+    local castle = Workspace:FindFirstChild("VampireCastle")
+    if castle then
+        for _, descendant in ipairs(castle:GetDescendants()) do
+            if descendant:IsA("Model") and descendant.Name == "Bookcase" then
+                descendant:Destroy()
+            end
+        end
+    end
+end
+
+local function getSeat()
+    DestroyCase()
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    if not runtime then return nil end
+    for _, gun in ipairs(runtime:GetChildren()) do
+        if gun.Name == "MaximGun" then
+            local seat = gun:FindFirstChildWhichIsA("VehicleSeat")
+            if seat then return seat end
+        end
+    end
+    return nil
+end
+
+local function SitSeat(seat)
+    local jumped = false
+    while true do
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame
+            task.wait(0.1)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
+                if not jumped then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.15)
+                    hrp.CFrame = seat.CFrame
+                    jumped = true
+                else
+                    break
+                end
+            else
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                task.wait(0.2)
+                jumped = false
+            end
+        end
+        task.wait(0.05)
+    end
 end
 
 local function UseSack()
@@ -161,6 +151,18 @@ local function UseSack()
         return true
     end
     return false
+end
+
+local function getPos(model)
+    if model:IsA("Model") then
+        if model.PrimaryPart then
+            return model.PrimaryPart.Position
+        else
+            local part = model:FindFirstChildWhichIsA("BasePart")
+            if part then return part.Position end
+        end
+    end
+    return nil
 end
 
 local function FindGold()
@@ -210,6 +212,18 @@ local function dropIfFull()
     end
 end
 
+while true do
+    local seat = getSeat()
+    if not seat then
+        TPTo(Vector3.new(57, -5, -9000))
+        task.wait(0.5)
+        continue
+    end
+    seat.Disabled = false
+    SitSeat(seat)
+    break
+end
+
 task.wait(1)
 UseSack()
 
@@ -246,6 +260,7 @@ local function tweenMovementAndTrack()
     while currentZ >= endZ do
         local startCFrame = CFrame.new(x, y, currentZ)
         local endCFrame = CFrame.new(x, y, currentZ + stepZ)
+
         local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = endCFrame})
         tween:Play()
@@ -269,6 +284,7 @@ if not success then
     warn("Error in tweenMovement: " .. errorMessage)
 end
 
+-- Limit of 40 stores, then drop and end
 local storeCount = 0
 local reachedLimit = false
 
@@ -331,14 +347,20 @@ local function getSackCount()
     return 0
 end
 
-if storeCount >= 80 then
+-- After reaching limit, drop everything and unhide visuals, then end script
+if storeCount >= 40 then
     TPTo(storageLocation)
     local itemCount = getSackCount()
     if itemCount and itemCount > 0 then
         FireDrop(itemCount)
     end
+    hiding = false
+    unhideAllVisuals()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
     task.wait(0.3)
-    return
+    return -- end script
 end
 
 dropIfFull()
+hiding = false
+unhideAllVisuals()
