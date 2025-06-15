@@ -25,7 +25,7 @@ local goldbarLocations = {
 
 local storageLocation = Vector3.new(57, 5, 30000)
 local sackCapacity = 10 -- or 15 if needed
-local maxStoreCount = 80
+local maxStoreCount = 40
 local totalStoreCount = 0
 local hiding, pauseHiding = false, false
 
@@ -45,6 +45,11 @@ local function hideVisuals(instance)
         instance.Enabled = false
     end
 end
+
+task.spawn(function()
+    task.wait(10)
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+end)
 
 coroutine.wrap(function()
     task.wait(10)
@@ -91,6 +96,57 @@ local function TPTo(position)
     task.wait(0.6)
 end
 
+local function DestroyCase()
+    local castle = Workspace:FindFirstChild("VampireCastle")
+    if castle then
+        for _, descendant in ipairs(castle:GetDescendants()) do
+            if descendant:IsA("Model") and descendant.Name == "Bookcase" then
+                descendant:Destroy()
+            end
+        end
+    end
+end
+
+local function getSeat()
+    DestroyCase()
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    if not runtime then return nil end
+    for _, gun in ipairs(runtime:GetChildren()) do
+        if gun.Name == "MaximGun" then
+            local seat = gun:FindFirstChildWhichIsA("VehicleSeat")
+            if seat then return seat end
+        end
+    end
+    return nil
+end
+
+local function SitSeat(seat)
+    local jumped = false
+    while true do
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame
+            task.wait(0.1)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
+                if not jumped then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.15)
+                    hrp.CFrame = seat.CFrame
+                    jumped = true
+                else
+                    break
+                end
+            else
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                task.wait(0.2)
+                jumped = false
+            end
+        end
+        task.wait(0.05)
+    end
+end
+
 local function UseSack()
     local sack = plr.Backpack:FindFirstChild("Sack")
     if sack then
@@ -135,6 +191,22 @@ local function dropIfFull()
     end
 end
 
+-- Seating logic before valuables
+while true do
+    local seat = getSeat()
+    if not seat then
+        TPTo(Vector3.new(57, -5, -9000))
+        task.wait(0.5)
+        continue
+    end
+    seat.Disabled = false
+    SitSeat(seat)
+    break
+end
+
+task.wait(1)
+UseSack()
+
 local function getSackCount()
     local sack = character:FindFirstChild("Sack") or plr.Backpack:FindFirstChild("Sack")
     if sack then
@@ -153,36 +225,28 @@ local done = false
 
 while not done do
     for _, location in ipairs(goldbarLocations) do
-        -- If we've hit the max, skip all further work
         if totalStoreCount >= maxStoreCount then
             done = true
             break
         end
-        -- TP to this location
         TPTo(location)
         task.wait(0.2)
-        -- Scan for valuables at this location
         local runtime = Workspace:FindFirstChild("RuntimeItems")
         local itemsAtThisLocation = {}
         if runtime then
             for _, item in ipairs(runtime:GetChildren()) do
                 if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                    -- Only select items within ~60 studs of this location to avoid overlap
                     if (item.PrimaryPart.Position - location).Magnitude < 60 then
                         table.insert(itemsAtThisLocation, item)
                     end
                 end
             end
         end
-        -- If there are none, move to the next location
         if #itemsAtThisLocation == 0 then
             continue
         end
-
-        -- Collect items at this location up to capacity or maxStoreCount
         local collected = 0
         while #itemsAtThisLocation > 0 and collected < sackCapacity and totalStoreCount < maxStoreCount do
-            -- Find nearest to current pos among remaining
             local closestIdx, closestDist = 1, math.huge
             for i, item in ipairs(itemsAtThisLocation) do
                 if item and item.Parent and item.PrimaryPart then
@@ -225,7 +289,6 @@ while not done do
         end
         dropIfFull()
         if isFull() then
-            -- After drop, continue from the next location in the list
             break
         end
     end
