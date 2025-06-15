@@ -7,7 +7,6 @@ local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
 
--- MaximGun TP logic based on user-provided (better) code
 local maximGunTP = Vector3.new(57, -5, -9000)
 
 local function destroyBookcases()
@@ -56,7 +55,6 @@ local function sitAndJumpOutSeat(seat)
     end
 end
 
--- Positions to visit for bond collection
 local positions = {
     Vector3.new(57, 3, 30000), Vector3.new(57, 3, 28000),
     Vector3.new(57, 3, 26000), Vector3.new(57, 3, 24000),
@@ -89,7 +87,6 @@ local function TPTo(position)
     end)
 end
 
--- Hide visuals code (only starts after 3rd position)
 local runtimeItems = workspace:FindFirstChild("RuntimeItems")
 local updateInterval = 1
 local function isInRuntimeItems(instance)
@@ -118,7 +115,6 @@ local function startHideLoop()
     end)
 end
 
--- MaximGun routine
 task.spawn(function()
     -- TP to MaximGun and get seat using improved logic
     while true do
@@ -144,7 +140,6 @@ task.spawn(function()
             startHideLoop()
         end
 
-        -- Bond collection (don't move to next position until all are gone)
         while true do
             local foundAny = false
             local bonds = workspace:FindFirstChild("RuntimeItems") and workspace.RuntimeItems:GetChildren() or {}
@@ -157,12 +152,18 @@ task.spawn(function()
                         foundAny = true
                     else
                         TPTo(bondPos - Vector3.new(0, 5, 0))
-                        local startTime = tick()
-                        while tick() - startTime < 5 do
-                            if not bond.Parent or not bond:IsDescendantOf(workspace.RuntimeItems) then
-                                break
+                        if i >= 5 then
+                            -- Start tick timer/collection only after reaching 5th position
+                            local startTime = tick()
+                            while tick() - startTime < 5 do
+                                if not bond.Parent or not bond:IsDescendantOf(workspace.RuntimeItems) then
+                                    break
+                                end
+                                task.wait(0.1)
                             end
-                            task.wait(0.1)
+                        else
+                            -- Quick wait for positions 1-4
+                            task.wait(0.2)
                         end
                         TPTo(pos)
                         foundAny = true
