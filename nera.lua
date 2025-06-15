@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
@@ -87,34 +86,24 @@ local function TPTo(position)
     end)
 end
 
-local runtimeItems = workspace:FindFirstChild("RuntimeItems")
-local updateInterval = 1
-local function isInRuntimeItems(instance)
-    if not runtimeItems then return false end
-    return instance:IsDescendantOf(runtimeItems)
-end
-local function hideVisuals(instance)
-    if isInRuntimeItems(instance) then return end
-    if instance:IsA("BasePart") then
-        instance.LocalTransparencyModifier = 1
-        instance.CanCollide = false
-    elseif instance:IsA("Decal") or instance:IsA("Texture") then
-        instance.Transparency = 1
-    elseif instance:IsA("Beam") or instance:IsA("Trail") then
-        instance.Enabled = false
-    end
-end
-local function startHideLoop()
-    task.spawn(function()
-        while true do
-            for _, instance in ipairs(workspace:GetDescendants()) do
-                hideVisuals(instance)
+-- Fire remote for all bonds within 15 studs, always running in background
+task.spawn(function()
+    task.wait(2)
+    while true do
+        task.wait(0.1)
+        local items = workspace:WaitForChild("RuntimeItems")
+        for _, bond in pairs(items:GetChildren()) do
+            if bond:IsA("Model") and (bond.Name == "Bond" or bond.Name == "Bonds") and bond.PrimaryPart then
+                local dist = (bond.PrimaryPart.Position - hrp.Position).Magnitude
+                if dist < 15 then
+                    ReplicatedStorage.Shared.Network.RemotePromise.Remotes.C_ActivateObject:FireServer(bond)
+                end
             end
-            task.wait(updateInterval)
         end
-    end)
-end
+    end
+end)
 
+-- Main farm loop
 task.spawn(function()
     -- TP to MaximGun and get seat using improved logic
     while true do
@@ -140,37 +129,26 @@ task.spawn(function()
             startHideLoop()
         end
 
+        -- Only move on when ALL bonds are collected at this position
         while true do
-            local foundAny = false
+            local allGone = true
             local bonds = workspace:FindFirstChild("RuntimeItems") and workspace.RuntimeItems:GetChildren() or {}
             for _, bond in ipairs(bonds) do
-                if bond:IsA("Model") and bond.PrimaryPart and (bond.Name == "Bond" or bond.Name == "Bonds") then
-                    local bondPos = bond.PrimaryPart.Position
-                    local dist = (bondPos - hrp.Position).Magnitude
-                    if dist < 15 then
-                        ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemotePromise"):WaitForChild("Remotes"):WaitForChild("C_ActivateObject"):FireServer(bond)
-                        foundAny = true
-                    else
-                        TPTo(bondPos - Vector3.new(0, 5, 0))
-                        if i >= 5 then
-                            -- Start tick timer/collection only after reaching 5th position
-                            local startTime = tick()
-                            while tick() - startTime < 5 do
-                                if not bond.Parent or not bond:IsDescendantOf(workspace.RuntimeItems) then
-                                    break
-                                end
-                                task.wait(0.1)
-                            end
-                        else
-                            -- Quick wait for positions 1-4
-                            task.wait(0.2)
-                        end
-                        TPTo(pos)
-                        foundAny = true
+                if bond:IsA("Model") and (bond.Name == "Bond" or bond.Name == "Bonds") and bond.PrimaryPart then
+                    local dist = (bond.PrimaryPart.Position - hrp.Position).Magnitude
+                    if dist >= 15 then
+                        -- TP directly under bond if it's far away, don't TP back
+                        TPTo(bond.PrimaryPart.Position - Vector3.new(0, 5, 0))
+                        task.wait(0.2)
+                        allGone = false
+                        break -- after each TP, re-check all bonds
+                    elseif dist < 15 then
+                        -- Near bond: let remote spammer handle it, do not TP
+                        allGone = false
                     end
                 end
             end
-            if not foundAny then break end
+            if allGone then break end
             task.wait(0.2)
         end
 
@@ -180,3 +158,22 @@ task.spawn(function()
         end
     end
 end)
+
+-- Hide visuals function (unchanged)
+function startHideLoop()
+    task.spawn(function()
+        while true do
+            for _, instance in ipairs(workspace:GetDescendants()) do
+                if instance:IsA("BasePart") then
+                    instance.LocalTransparencyModifier = 1
+                    instance.CanCollide = false
+                elseif instance:IsA("Decal") or instance:IsA("Texture") then
+                    instance.Transparency = 1
+                elseif instance:IsA("Beam") or instance:IsA("Trail") then
+                    instance.Enabled = false
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
