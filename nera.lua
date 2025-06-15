@@ -224,6 +224,7 @@ local function getSackCount()
 end
 
 local duration = 0.7
+
 ::mainloop::
 for _, location in ipairs(goldbarLocations) do
     if totalStoreCount >= maxStoreCount then break end
