@@ -1,5 +1,3 @@
--- ROBUST AUTO SIT, THEN START VALUABLES FARM
-
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -7,12 +5,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local plr = Players.LocalPlayer
 local character = plr.Character or plr.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- ----------- SITTING LOGIC -----------
 local runtime = Workspace:WaitForChild("RuntimeItems")
 local tesla = Workspace:WaitForChild("TeslaLab"):WaitForChild("Generator")
 
--- Teleport to Tesla Generator once at start
 hrp.CFrame = tesla:GetPivot() + Vector3.new(0,5,0)
 hrp.Anchored = true
 task.wait(2)
@@ -33,29 +32,45 @@ local function orderedSeats()
 end
 
 local function sitOn(seat)
-    hrp.Anchored = true
-    hrp.CFrame = seat.CFrame + Vector3.new(0,3,0)
+    hrp.Anchored=true
+    hrp.CFrame=seat.CFrame+Vector3.new(0,3,0)
     task.wait(0.2)
-    hrp.Anchored = false
+    hrp.Anchored=false
     task.wait(0.35)
     seat:Sit(humanoid)
 end
 
 local usedChairs = {}
-
-local function stableMoved(startPos)
-    -- Wait 0.7s and see if position is stably changed after any rubber-banding
-    local lastPos = nil
-    for i=1,7 do
-        task.wait(0.1)
-        lastPos = hrp.Position
+local function stableSatCheck(startPos)
+    local stable = false
+    local threshold = 5
+    local duration = 1 -- seconds
+    local interval = 0.1
+    local timeStable = 0
+    local lastPos = hrp.Position
+    for _ = 1, math.floor(duration / interval) do
+        task.wait(interval)
+        local currPos = hrp.Position
+        if (currPos - startPos).Magnitude > threshold then
+            if (currPos - lastPos).Magnitude < 1 then
+                timeStable = timeStable + interval
+            else
+                timeStable = 0
+            end
+        else
+            timeStable = 0
+        end
+        lastPos = currPos
+        if timeStable >= 0.5 then
+            stable = true
+            break
+        end
     end
-    -- Must be 5+ studs from startPos for 0.7s and not rubber-banded back
-    return (lastPos - startPos).Magnitude > 5
+    return stable
 end
 
--- Robust seating loop
-while true do
+local hasSat = false
+while not hasSat do
     local seats = orderedSeats()
     local found = false
     for _,v in ipairs(seats) do
@@ -66,9 +81,9 @@ while true do
             task.wait(0.3)
             local startPos = hrp.Position
             sitOn(v.s)
-            if stableMoved(startPos) then
-                usedChairs = {} -- Reset for next time
-                goto sitting_success
+            if stableSatCheck(startPos) then
+                hasSat = true
+                break
             else
                 usedChairs[v.s] = true
             end
@@ -226,7 +241,6 @@ local function tweenMovementAndTrack()
     while currentZ >= endZ do
         local startCFrame = CFrame.new(x, y, currentZ)
         local endCFrame = CFrame.new(x, y, currentZ + stepZ)
-
         local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = endCFrame})
         tween:Play()
@@ -289,7 +303,7 @@ while #foundItems > 0 and not reachedLimit do
             storeCount = storeCount + 1
             dropIfFull()
             task.wait(0.5)
-            if storeCount >= 80 then -- <-- Limit is 80
+            if storeCount >= 40 then
                 reachedLimit = true
                 break
             end
@@ -319,7 +333,7 @@ if storeCount >= 80 then
         FireDrop(itemCount)
     end
     task.wait(0.3)
-    return -- ends valuables code
+    return
 end
 
 dropIfFull()
