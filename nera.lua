@@ -82,8 +82,6 @@ while true do
     task.wait(2)
 end
 
-::sitting_success::
-print("Successfully seated!")
 task.wait(5)
 
 -- ----------- VALUABLE FARM LOGIC -----------
