@@ -1,137 +1,10 @@
--- Ensure game is loaded
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
-repeat task.wait() until game.Players.LocalPlayer.Character and not game.Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingScreenPrefab")
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("EndDecision"):FireServer(false)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
 
--- Bond counter UI (centered 300x300, black bg, white text, not draggable)
-if not game.CoreGui:FindFirstChild("BondCheck") then
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "BondCheck"
-    gui.Parent = game.CoreGui
-
-    local frame = Instance.new("Frame")
-    frame.Name = "Bond"
-    frame.Size = UDim2.new(0, 300, 0, 300)
-    frame.Position = UDim2.new(0.5, -150, 0.5, -150)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
-    frame.BorderSizePixel = 2
-    frame.BackgroundTransparency = 0.18
-    frame.Active = false -- Not draggable
-    frame.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0.08, 0)
-    corner.Parent = frame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.new(1, 1, 1)
-    stroke.Thickness = 2
-    stroke.Parent = frame
-
-    -- Discord link at top
-    local discordLabel = Instance.new("TextLabel")
-    discordLabel.Name = "Discord"
-    discordLabel.Size = UDim2.new(1, -20, 0, 32)
-    discordLabel.Position = UDim2.new(0, 10, 0, 10)
-    discordLabel.BackgroundTransparency = 1
-    discordLabel.Text = "DISCORD.GG/RINGTA"
-    discordLabel.TextSize = 24
-    discordLabel.Font = Enum.Font.GothamBold
-    discordLabel.TextColor3 = Color3.fromRGB(114, 137, 218)
-    discordLabel.TextStrokeTransparency = 0.3
-    discordLabel.TextYAlignment = Enum.TextYAlignment.Top
-    discordLabel.Parent = frame
-
-    -- Bond amount at bottom
-    local bondLabel = Instance.new("TextLabel")
-    bondLabel.Name = "BondAmount"
-    bondLabel.Size = UDim2.new(1, -40, 0, 48)
-    bondLabel.Position = UDim2.new(0, 20, 1, -58)
-    bondLabel.BackgroundTransparency = 1
-    bondLabel.Text = "Bond Amount: +0"
-    bondLabel.TextSize = 32
-    bondLabel.Font = Enum.Font.GothamBold
-    bondLabel.TextColor3 = Color3.new(1, 1, 1)
-    bondLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    bondLabel.TextStrokeTransparency = 0.4
-    bondLabel.TextYAlignment = Enum.TextYAlignment.Bottom
-    bondLabel.Parent = frame
-end
-
--- Global bond count
-_G.Bond = 0
-workspace.RuntimeItems.ChildAdded:Connect(function(v)
-    if v.Name:find("Bond") and v:FindFirstChild("Part") then
-        v.Destroying:Connect(function() _G.Bond += 1 end)
-    end
-end)
-spawn(function()
-    local gui = game.CoreGui:WaitForChild("BondCheck")
-    while gui.Parent do
-        local lbl = gui.Bond:FindFirstChild("BondAmount")
-        if lbl then
-            lbl.Text = "Bond Amount: +" .. _G.Bond
-        end
-        task.wait(0.05)
-    end
-end)
-
--- Camera & anchoring setup
-local plr = game.Players.LocalPlayer
-plr.CameraMode = "Classic"
-plr.CameraMaxZoomDistance = math.huge
-plr.CameraMinZoomDistance = 30
-game.Workspace.CurrentCamera.CameraSubject = plr.Character:FindFirstChild("Humanoid")
-plr.Character.HumanoidRootPart.Anchored = true
-
--- Teleport to Vampire Castle & seat in MaximGun
-repeat
-    plr.Character.HumanoidRootPart.Anchored = true
-    task.wait(0.25)
-    plr.Character.HumanoidRootPart.CFrame = CFrame.new(80, 3, -9000)
-until workspace.RuntimeItems:FindFirstChild("MaximGun")
-task.wait(0.15)
-for _, v in ipairs(workspace.RuntimeItems:GetChildren()) do
-    if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat") then
-        v.VehicleSeat.Disabled = false
-        v.VehicleSeat:SetAttribute("Disabled", false)
-        v.VehicleSeat:Sit(plr.Character.Humanoid)
-    end
-end
-task.wait(0.25)
--- Snap to seat
-for _, v in ipairs(workspace.RuntimeItems:GetChildren()) do
-    if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat")
-    and (plr.Character.HumanoidRootPart.Position - v.VehicleSeat.Position).Magnitude < 400 then
-        plr.Character.HumanoidRootPart.CFrame = v.VehicleSeat.CFrame
-    end
-end
-task.wait(0.5)
-plr.Character.HumanoidRootPart.Anchored = false
-repeat task.wait() until plr.Character:FindFirstChildOfClass("Humanoid").Sit
-task.wait(0.25)
-plr.Character:FindFirstChildOfClass("Humanoid").Sit = false
-task.wait(0.25)
-repeat
-    for _, v in ipairs(workspace.RuntimeItems:GetChildren()) do
-        if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat")
-        and (plr.Character.HumanoidRootPart.Position - v.VehicleSeat.Position).Magnitude < 400 then
-            plr.Character.HumanoidRootPart.CFrame = v.VehicleSeat.CFrame
-        end
-    end
-    task.wait(0.05)
-until plr.Character:FindFirstChildOfClass("Humanoid").Sit
-task.wait(0.45)
-
--- INSTANT TP TO LOCATIONS & BOND COLLECTION (with delay, special scripts, and collecting 5 blocks under bond)
 local positions = {
-    Vector3.new(57, 3, 30000), -- 1st
-    Vector3.new(57, 3, 28000), -- 2nd
-    Vector3.new(57, 3, 26000), -- 3rd
-    Vector3.new(57, 3, 24000),
+    Vector3.new(57, 3, 30000), Vector3.new(57, 3, 28000),
+    Vector3.new(57, 3, 26000), Vector3.new(57, 3, 24000),
     Vector3.new(57, 3, 22000), Vector3.new(57, 3, 20000),
     Vector3.new(57, 3, 18000), Vector3.new(57, 3, 16000),
     Vector3.new(57, 3, 14000), Vector3.new(57, 3, 12000),
@@ -153,96 +26,158 @@ local positions = {
     Vector3.new(-434, 3, -48998)
 }
 
-local WaitTime = 0.6
-local ranHideScript = false
+local WaitTime = 0.9
+local BDWaitTime = 0.9
 
-local function TPTo(pos)
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(pos)
-    end
-end
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
 
-local function collectBondsAtPosition()
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    -- Wait for bonds to load in
-    task.wait(0.2)
-    for _, v in ipairs(workspace.RuntimeItems:GetChildren()) do
-        if v.Name:find("Bond") and v:FindFirstChild("Part") then
-            -- Teleport 5 blocks underneath the bond before collecting
-            local under = v.Part.Position - Vector3.new(0, 5, 0)
-            hrp.CFrame = CFrame.new(under)
-            task.wait(0.1)
-            -- Then teleport directly to the bond to collect
-            hrp.CFrame = v.Part.CFrame
-            pcall(function()
-                game:GetService("ReplicatedStorage")
-                    .Shared.Network.RemotePromise.Remotes.C_ActivateObject:FireServer(v)
-            end)
-            task.wait(0.05)
-        end
-    end
-end
+local BondFound = {}
+local BondCount = 0
 
-local function runHideScript()
-    if ranHideScript then return end
-    ranHideScript = true
-    spawn(function()
-        local Players = game:GetService("Players")
-        local player = Players.LocalPlayer
-        local runtimeItems = workspace:FindFirstChild("RuntimeItems")
-        local updateInterval = 1
-
-        local function isInRuntimeItems(instance)
-            if not runtimeItems then return false end
-            return instance:IsDescendantOf(runtimeItems)
-        end
-
-        local function hideVisuals(instance)
-            if isInRuntimeItems(instance) then return end
-            if instance:IsA("BasePart") then
-                instance.LocalTransparencyModifier = 1
-                instance.CanCollide = false
-            elseif instance:IsA("Decal") or instance:IsA("Texture") then
-                instance.Transparency = 1
-            elseif instance:IsA("Beam") or instance:IsA("Trail") then
-                instance.Enabled = false
-            end
-        end
-
-        while true do
-            for _, instance in ipairs(workspace:GetDescendants()) do
-                hideVisuals(instance)
-            end
-            task.wait(updateInterval)
-        end
+local function TPTo(position)
+    pcall(function()
+        hrp.CFrame = CFrame.new(position)
     end)
 end
 
-local runService = game:GetService("RunService")
-while true do
-    if plr.Character:FindFirstChildOfClass("Humanoid").Sit then
-        for i, pos in ipairs(positions) do
-            TPTo(pos)
-            task.wait(WaitTime)
-            -- 2nd position: run fly loadstring
-            if i == 2 then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-            end
-            -- 3rd position: run hide visuals script
-            if i == 3 then
-                runHideScript()
-            end
-            collectBondsAtPosition()
-            -- Final position: run lowserver loadstring after 6s
-            if pos == Vector3.new(-434, 3, -48998) then
-                task.wait(6)
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/ewewe514/lowserver.github.io/refs/heads/main/lowserver.lua"))()
+local function getSeat()
+    local gun = workspace:FindFirstChild("RuntimeItems") and workspace.RuntimeItems:FindFirstChild("MaximGun")
+    if not gun then return nil end
+    local seat = gun:FindFirstChildWhichIsA("VehicleSeat")
+    if not seat then return nil end
+    return seat
+end
+
+local function SitSeat(seat)
+    while true do
+        if humanoid.SeatPart and humanoid.SeatPart ~= seat then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame + Vector3.new(0, 2, 0)
+            task.wait(0.2)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(player.Character) then
+                break
             end
         end
-        -- Optional: break here if you only want to run once
-        -- break
     end
-    task.wait(0.05)
 end
+
+local teleportPosition = Vector3.new(57, -5, -9000)
+local teleportCount = 10
+local delayTime = 0.1
+
+if hrp then
+    for i = 1, teleportCount do
+        hrp.CFrame = CFrame.new(teleportPosition)
+        wait(delayTime)
+    end
+else
+    warn("HumanoidRootPart not found!") -- Debugging message
+end
+
+task.spawn(function()
+    TPTo(Vector3.new(57, -5, -9000))
+    task.wait(1)
+
+    local seat = getSeat()
+    if not seat then
+        return
+    end
+    seat.Disabled = false
+
+    SitSeat(seat)
+
+    for i, pos in ipairs(positions) do
+        TPTo(pos)
+        task.wait(WaitTime)
+
+        -- 2nd position: inject fly.lua
+        if i == 2 then
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+        end
+
+        -- 3rd position: hide everything
+        if i == 3 then
+            task.spawn(function()
+                local Players = game:GetService("Players")
+                local player = Players.LocalPlayer
+                local runtimeItems = workspace:FindFirstChild("RuntimeItems")
+                local updateInterval = 1
+
+                local function isInRuntimeItems(instance)
+                    if not runtimeItems then return false end
+                    return instance:IsDescendantOf(runtimeItems)
+                end
+
+                local function hideVisuals(instance)
+                    if isInRuntimeItems(instance) then return end
+                    if instance:IsA("BasePart") then
+                        instance.LocalTransparencyModifier = 1
+                        instance.CanCollide = false
+                    elseif instance:IsA("Decal") or instance:IsA("Texture") then
+                        instance.Transparency = 1
+                    elseif instance:IsA("Beam") or instance:IsA("Trail") then
+                        instance.Enabled = false
+                    end
+                end
+
+                while true do
+                    for _, instance in ipairs(workspace:GetDescendants()) do
+                        hideVisuals(instance)
+                    end
+                    task.wait(updateInterval)
+                end
+            end)
+        end
+
+        if pos == Vector3.new(-434, 3, -48998) then
+            task.wait(6)
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ewewe514/lowserver.github.io/refs/heads/main/lowserver.lua"))()
+        end
+
+        local bonds = workspace.RuntimeItems:GetChildren()
+        for _, bond in ipairs(bonds) do
+            if bond:IsA("Model") and bond.PrimaryPart and (bond.Name == "Bond" or bond.Name == "Bonds") then
+                local bondPos = bond.PrimaryPart.Position
+                local wasChecked = false
+
+                for _, storedPos in ipairs(BondFound) do
+                    if (bondPos - storedPos).Magnitude < 1 then
+                        wasChecked = true
+                        break
+                    end
+                end
+
+                if not wasChecked then
+                    table.insert(BondFound, bondPos)
+                    BondCount = BondCount + 1
+                    -- Teleport 5 blocks under the bond
+                    TPTo(bondPos - Vector3.new(0, 5, 0))
+                    task.wait(BDWaitTime)
+                    TPTo(pos)
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    task.wait(2)
+    while true do
+        task.wait(0.1)
+        local items = workspace:WaitForChild("RuntimeItems")
+        for _, bond in pairs(items:GetChildren()) do
+            if bond:IsA("Model") and bond.Name == "Bond" and bond.PrimaryPart then
+                local dist = (bond.PrimaryPart.Position - hrp.Position).Magnitude
+                if dist < 100 then
+                    game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemotePromise"):WaitForChild("Remotes"):WaitForChild("C_ActivateObject"):FireServer(bond)
+                end
+            end
+        end
+    end
+end)
