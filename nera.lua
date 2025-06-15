@@ -1,3 +1,5 @@
+-- ROBUST AUTO SIT, THEN START VALUABLES FARM (SAFE VERSION)
+
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -5,13 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local plr = Players.LocalPlayer
 local character = plr.Character or plr.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
-
--- ----------- SITTING LOGIC -----------
+local hrp = character:WaitForChild("HumanoidRootPart")
 local runtime = Workspace:WaitForChild("RuntimeItems")
 local tesla = Workspace:WaitForChild("TeslaLab"):WaitForChild("Generator")
 
+-- Teleport to Tesla Generator once at start
 hrp.CFrame = tesla:GetPivot() + Vector3.new(0,5,0)
 hrp.Anchored = true
 task.wait(2)
@@ -32,49 +33,60 @@ local function orderedSeats()
 end
 
 local function sitOn(seat)
-    hrp.Anchored=true
-    hrp.CFrame=seat.CFrame+Vector3.new(0,3,0)
+    hrp.Anchored = true
+    hrp.CFrame = seat.CFrame + Vector3.new(0,3,0)
     task.wait(0.2)
-    hrp.Anchored=false
+    hrp.Anchored = false
     task.wait(0.35)
     seat:Sit(humanoid)
 end
 
-local prevPos = hrp.Position
 local usedChairs = {}
-local hasSat = false
 
-while not hasSat do
-    local moved = (hrp.Position - prevPos).Magnitude > 5
-    if not moved then
-        local seats = orderedSeats()
-        local found = false
-        for _,v in ipairs(seats) do
-            if not usedChairs[v.s] then
-                humanoid.Sit = false
-                task.wait(0.2)
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                task.wait(0.3)
-                sitOn(v.s)
-                usedChairs[v.s] = true
-                found = true
-                break
-            end
-        end
-        if not found then
-            usedChairs = {}
-        end
-    else
-        hasSat = true
+local function stableMoved(startPos)
+    -- Wait 0.7s and see if position is stably changed after any rubber-banding
+    local lastPos = nil
+    for i=1,7 do
+        task.wait(0.1)
+        lastPos = hrp.Position
     end
-    prevPos = hrp.Position
-    task.wait(3)
+    -- Must be 5+ studs from startPos for 0.7s and not rubber-banded back
+    return (lastPos - startPos).Magnitude > 5
 end
 
--- Delay 5 seconds after sitting before starting valuables code
+-- Robust seating loop
+while true do
+    local seats = orderedSeats()
+    local found = false
+    for _,v in ipairs(seats) do
+        if not usedChairs[v.s] then
+            humanoid.Sit = false
+            task.wait(0.2)
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            task.wait(0.3)
+            local startPos = hrp.Position
+            sitOn(v.s)
+            if stableMoved(startPos) then
+                usedChairs = {} -- Reset for next time
+                goto sitting_success
+            else
+                usedChairs[v.s] = true
+            end
+            found = true
+            break
+        end
+    end
+    if not found then
+        usedChairs = {}
+    end
+    task.wait(2)
+end
+
+::sitting_success::
+print("Successfully seated!")
 task.wait(5)
 
--- ----------- VALUABLE FARM LOGIC -----------
+-- ----------- VALUABLE FARM LOGIC (SAFE) -----------
 local targetNames = {
     "GoldBar", "SilverBar", "Crucifix",
     "GoldStatue", "SilverStatue", "BrainJar"
@@ -216,13 +228,12 @@ local function tweenMovementAndTrack()
     while currentZ >= endZ do
         local startCFrame = CFrame.new(x, y, currentZ)
         local endCFrame = CFrame.new(x, y, currentZ + stepZ)
-
         local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = endCFrame})
         tween:Play()
 
         local tweenRunning = true
-        local conn = nil
+        local conn
         conn = game:GetService("RunService").Heartbeat:Connect(function()
             if tweenRunning then scanForValuables() end
         end)
@@ -232,6 +243,7 @@ local function tweenMovementAndTrack()
         if conn then conn:Disconnect() end
 
         currentZ = currentZ + stepZ
+        task.wait(0.1) -- Prevents CPU lockup/crash
     end
 end
 
@@ -278,16 +290,18 @@ while #foundItems > 0 and not reachedLimit do
             table.remove(foundItems, i)
             storeCount = storeCount + 1
             dropIfFull()
-            task.wait(0.5)
-            if storeCount >= 40 then
+            task.wait(0.4)
+            if storeCount >= 80 then -- <-- Limit is 80
                 reachedLimit = true
                 break
             end
         else
             table.remove(foundItems, i)
         end
+        task.wait(0.1) -- Prevents lockup!
     end
     scanForValuables()
+    task.wait(0.2) -- Prevents lockup!
 end
 
 local function getSackCount()
@@ -309,7 +323,7 @@ if storeCount >= 80 then
         FireDrop(itemCount)
     end
     task.wait(0.3)
-    return
+    return -- ends valuables code
 end
 
 dropIfFull()
