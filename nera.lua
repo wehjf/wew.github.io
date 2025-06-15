@@ -8,7 +8,6 @@ local character = plr.Character or plr.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
--- ----------- SITTING LOGIC -----------
 local runtime = Workspace:WaitForChild("RuntimeItems")
 local tesla = Workspace:WaitForChild("TeslaLab"):WaitForChild("Generator")
 
@@ -17,86 +16,92 @@ hrp.Anchored = true
 task.wait(2)
 hrp.Anchored = false
 
-local function orderedSeats()
-    local seats, pos = {}, hrp.Position
-    for _,m in ipairs(runtime:GetChildren()) do
-        if m:IsA("Model") and m.Name == "Chair" then
-            local s = m:FindFirstChildOfClass("Seat")
-            if s and not s.Occupant then
-                table.insert(seats, {s=s, d=(s.Position-pos).Magnitude})
+-- SITTING LOGIC (runs in parallel)
+local sitting_done = false
+spawn(function()
+    local function orderedSeats()
+        local seats, pos = {}, hrp.Position
+        for _,m in ipairs(runtime:GetChildren()) do
+            if m:IsA("Model") and m.Name == "Chair" then
+                local s = m:FindFirstChildOfClass("Seat")
+                if s and not s.Occupant then
+                    table.insert(seats, {s=s, d=(s.Position-pos).Magnitude})
+                end
             end
         end
+        table.sort(seats, function(a,b) return a.d < b.d end)
+        return seats
     end
-    table.sort(seats, function(a,b) return a.d < b.d end)
-    return seats
-end
 
-local function sitOn(seat)
-    hrp.Anchored=true
-    hrp.CFrame=seat.CFrame+Vector3.new(0,3,0)
-    task.wait(0.2)
-    hrp.Anchored=false
-    task.wait(0.35)
-    seat:Sit(humanoid)
-end
+    local function sitOn(seat)
+        hrp.Anchored=true
+        hrp.CFrame=seat.CFrame+Vector3.new(0,3,0)
+        task.wait(0.2)
+        hrp.Anchored=false
+        task.wait(0.35)
+        seat:Sit(humanoid)
+    end
 
-local usedChairs = {}
-local function stableSatCheck(startPos)
-    local stable = false
-    local threshold = 5
-    local duration = 1 -- seconds
-    local interval = 0.1
-    local timeStable = 0
-    local lastPos = hrp.Position
-    for _ = 1, math.floor(duration / interval) do
-        task.wait(interval)
-        local currPos = hrp.Position
-        if (currPos - startPos).Magnitude > threshold then
-            if (currPos - lastPos).Magnitude < 1 then
-                timeStable = timeStable + interval
+    local usedChairs = {}
+    local function stableSatCheck(startPos)
+        local stable = false
+        local threshold = 5
+        local duration = 1 -- seconds
+        local interval = 0.1
+        local timeStable = 0
+        local lastPos = hrp.Position
+        for _ = 1, math.floor(duration / interval) do
+            task.wait(interval)
+            local currPos = hrp.Position
+            if (currPos - startPos).Magnitude > threshold then
+                if (currPos - lastPos).Magnitude < 1 then
+                    timeStable = timeStable + interval
+                else
+                    timeStable = 0
+                end
             else
                 timeStable = 0
             end
-        else
-            timeStable = 0
-        end
-        lastPos = currPos
-        if timeStable >= 0.5 then
-            stable = true
-            break
-        end
-    end
-    return stable
-end
-
-local hasSat = false
-while not hasSat do
-    local seats = orderedSeats()
-    local found = false
-    for _,v in ipairs(seats) do
-        if not usedChairs[v.s] then
-            humanoid.Sit = false
-            task.wait(0.2)
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            task.wait(0.3)
-            local startPos = hrp.Position
-            sitOn(v.s)
-            if stableSatCheck(startPos) then
-                hasSat = true
+            lastPos = currPos
+            if timeStable >= 0.5 then
+                stable = true
                 break
-            else
-                usedChairs[v.s] = true
             end
-            found = true
-            break
         end
+        return stable
     end
-    if not found then
-        usedChairs = {}
-    end
-    task.wait(2)
-end
 
+    local hasSat = false
+    while not hasSat do
+        local seats = orderedSeats()
+        local found = false
+        for _,v in ipairs(seats) do
+            if not usedChairs[v.s] then
+                humanoid.Sit = false
+                task.wait(0.2)
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                task.wait(0.3)
+                local startPos = hrp.Position
+                sitOn(v.s)
+                if stableSatCheck(startPos) then
+                    hasSat = true
+                    break
+                else
+                    usedChairs[v.s] = true
+                end
+                found = true
+                break
+            end
+        end
+        if not found then
+            usedChairs = {}
+        end
+        task.wait(2)
+    end
+    sitting_done = true
+end)
+
+-- Wait 5 seconds (regardless of sitting)
 task.wait(5)
 
 -- ----------- VALUABLE FARM LOGIC -----------
