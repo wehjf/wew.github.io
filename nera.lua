@@ -1,5 +1,3 @@
--- ROBUST AUTO SIT, THEN START VALUABLES FARM (SAFE VERSION)
-
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -12,7 +10,6 @@ local hrp = character:WaitForChild("HumanoidRootPart")
 local runtime = Workspace:WaitForChild("RuntimeItems")
 local tesla = Workspace:WaitForChild("TeslaLab"):WaitForChild("Generator")
 
--- Teleport to Tesla Generator once at start
 hrp.CFrame = tesla:GetPivot() + Vector3.new(0,5,0)
 hrp.Anchored = true
 task.wait(2)
@@ -44,17 +41,14 @@ end
 local usedChairs = {}
 
 local function stableMoved(startPos)
-    -- Wait 0.7s and see if position is stably changed after any rubber-banding
     local lastPos = nil
     for i=1,7 do
         task.wait(0.1)
         lastPos = hrp.Position
     end
-    -- Must be 5+ studs from startPos for 0.7s and not rubber-banded back
     return (lastPos - startPos).Magnitude > 5
 end
 
--- Robust seating loop
 while true do
     local seats = orderedSeats()
     local found = false
@@ -67,7 +61,7 @@ while true do
             local startPos = hrp.Position
             sitOn(v.s)
             if stableMoved(startPos) then
-                usedChairs = {} -- Reset for next time
+                usedChairs = {}
                 goto sitting_success
             else
                 usedChairs[v.s] = true
@@ -83,10 +77,8 @@ while true do
 end
 
 ::sitting_success::
-print("Successfully seated!")
 task.wait(5)
 
--- ----------- VALUABLE FARM LOGIC (SAFE) -----------
 local targetNames = {
     "GoldBar", "SilverBar", "Crucifix",
     "GoldStatue", "SilverStatue", "BrainJar"
@@ -145,20 +137,10 @@ local function UseSack()
     return false
 end
 
-local function FindGold()
-    local golds = {}
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if not runtime then return golds end
-    for _, item in ipairs(runtime:GetChildren()) do
-        if table.find(targetNames, item.Name) and not wasStored[item] then
-            table.insert(golds, item)
-        end
-    end
-    return golds
-end
-
 local function FireStore(item)
-    ReplicatedStorage.Remotes.StoreItem:FireServer(item)
+    if ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("StoreItem") then
+        ReplicatedStorage.Remotes.StoreItem:FireServer(item)
+    end
 end
 
 local function isFull()
@@ -173,9 +155,11 @@ local function isFull()
 end
 
 local function FireDrop(count)
-    for _ = 1, count do
-        ReplicatedStorage.Remotes.DropItem:FireServer()
-        task.wait(0.2)
+    if ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("DropItem") then
+        for _ = 1, count do
+            ReplicatedStorage.Remotes.DropItem:FireServer()
+            task.wait(0.2)
+        end
     end
 end
 
@@ -243,7 +227,7 @@ local function tweenMovementAndTrack()
         if conn then conn:Disconnect() end
 
         currentZ = currentZ + stepZ
-        task.wait(0.1) -- Prevents CPU lockup/crash
+        task.wait(0.1)
     end
 end
 
@@ -291,17 +275,17 @@ while #foundItems > 0 and not reachedLimit do
             storeCount = storeCount + 1
             dropIfFull()
             task.wait(0.4)
-            if storeCount >= 80 then -- <-- Limit is 80
+            if storeCount >= 80 then
                 reachedLimit = true
                 break
             end
         else
             table.remove(foundItems, i)
         end
-        task.wait(0.1) -- Prevents lockup!
+        task.wait(0.1)
     end
     scanForValuables()
-    task.wait(0.2) -- Prevents lockup!
+    task.wait(0.2)
 end
 
 local function getSackCount()
@@ -323,7 +307,7 @@ if storeCount >= 80 then
         FireDrop(itemCount)
     end
     task.wait(0.3)
-    return -- ends valuables code
+    return
 end
 
 dropIfFull()
