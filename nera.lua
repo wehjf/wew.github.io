@@ -3,44 +3,41 @@ local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
+
 local chairTP = Vector3.new(57, -5, -9000)
 
-local function isUnanchored(model)
-    for _, part in ipairs(model:GetDescendants()) do
-        if part:IsA("BasePart") and part.Anchored then return false end
-    end
-    return true
-end
-
-local function findAnyValidChair()
+-- Find any valid Chair model with a valid Seat inside
+local function findAnyValidChairSeat()
     local runtimeFolder = workspace:FindFirstChild("RuntimeItems")
     if not runtimeFolder then return nil end
-    for _, item in pairs(runtimeFolder:GetChildren()) do
-        if item:IsA("Model") and item.Name == "Chair" and isUnanchored(item) then
-            local seat = item:FindFirstChildWhichIsA("Seat", true)
-            if seat and not seat.Occupant then
-                return seat
+    for _, chair in ipairs(runtimeFolder:GetChildren()) do
+        if chair:IsA("Model") and chair.Name == "Chair" then
+            for _, child in ipairs(chair:GetChildren()) do
+                if child:IsA("Seat") and not child.Anchored and not child.Occupant then
+                    return child
+                end
             end
         end
     end
     return nil
 end
 
-local function sitAndJumpOutChair(seat)
-    -- Returns true if actually sat and jumped, false otherwise
+local function sitAndJumpOutSeat(seat)
     local jumped = false
-    local timeStart = tick()
-    while tick() - timeStart < 10 do -- Timeout after 10s to prevent infinite loop if seat broken
+    local timeout = tick() + 10 -- 10s timeout to avoid infinite loops
+    while tick() < timeout do
         if humanoid.SeatPart ~= seat then
+            -- Only teleport if not already sitting!
             hrp.CFrame = seat.CFrame
             task.wait(0.1)
         else
+            -- Once you're sitting, stop teleporting!
             local weld = seat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(char) then
+            if weld == nil or (weld.Part1 and weld.Part1:IsDescendantOf(char)) then
                 if not jumped then
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                     task.wait(0.2)
-                    hrp.CFrame = seat.CFrame
+                    -- After jumping, you can optionally teleport again if you want to try to re-seat
                     jumped = true
                 else
                     return true
@@ -48,16 +45,19 @@ local function sitAndJumpOutChair(seat)
             end
         end
     end
-    return false -- Timed out
+    return false
 end
 
--- Main: keep trying until success
+-- Main: Keep trying until it works
 while true do
-    hrp.CFrame = CFrame.new(chairTP)
-    task.wait(0.5)
-    local seat = findAnyValidChair()
+    -- Only teleport if not already sitting!
+    local seat = findAnyValidChairSeat()
     if seat then
-        local success = sitAndJumpOutChair(seat)
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame
+            task.wait(0.5)
+        end
+        local success = sitAndJumpOutSeat(seat)
         if success then
             break
         end
