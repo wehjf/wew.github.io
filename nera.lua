@@ -223,77 +223,6 @@ end
 task.wait(1)
 UseSack()
 
-local foundItems = {}
-
--- Instead of tween scanning, TP to each location and gather valuables within 50 studs
-for _, location in ipairs(goldbarLocations) do
-    TPTo(location)
-    task.wait(0.2)
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if runtime then
-        for _, item in ipairs(runtime:GetChildren()) do
-            if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
-                local pos = item.PrimaryPart.Position
-                if (pos - location).Magnitude < 500 then
-                    table.insert(foundItems, pos)
-                end
-            end
-        end
-    end
-end
-
--- Limit of 40 stores, then drop and end
-local storeCount = 0
-local reachedLimit = false
-local duration = 0.7
-
-while #foundItems > 0 and not reachedLimit do
-    for i = #foundItems, 1, -1 do
-        local pos = foundItems[i]
-        local runtime = Workspace:FindFirstChild("RuntimeItems")
-        local itemToCollect = nil
-        if runtime then
-            for _, item in ipairs(runtime:GetChildren()) do
-                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart and (item.PrimaryPart.Position - pos).Magnitude < 1 and not wasStored[item] then
-                    itemToCollect = item
-                    break
-                end
-            end
-        end
-        if itemToCollect then
-            local dist = (hrp.Position - pos).Magnitude
-            local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
-            if dist <= 15 then
-                UseSack()
-                FireStore(itemToCollect)
-            elseif dist <= 500 then
-                local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-                tween:Play()
-                tween.Completed:Wait()
-                UseSack()
-                FireStore(itemToCollect)
-            else
-                TPTo(targetPos)
-                UseSack()
-                FireStore(itemToCollect)
-            end
-            wasStored[itemToCollect] = true
-            table.remove(foundItems, i)
-            storeCount = storeCount + 1
-            dropIfFull()
-            task.wait(0.5)
-            if storeCount >= 40 then
-                reachedLimit = true
-                break
-            end
-        else
-            table.remove(foundItems, i)
-        end
-    end
-    -- Optionally, you can re-scan for new valuables at locations here if stuff can spawn late
-end
-
 local function getSackCount()
     local sack = character:FindFirstChild("Sack") or plr.Backpack:FindFirstChild("Sack")
     if sack then
@@ -306,19 +235,69 @@ local function getSackCount()
     return 0
 end
 
-if storeCount >= 40 then
-    TPTo(storageLocation)
-    local itemCount = getSackCount()
-    if itemCount and itemCount > 0 then
-        FireDrop(itemCount)
+-- Main collection loop: keeps going until maxStoreCount reached or no more items
+local totalStoreCount = 0
+local maxStoreCount = 40
+local duration = 0.7
+
+while totalStoreCount < maxStoreCount do
+    -- Scan for new valuables at all locations
+    local foundItems = {}
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    for _, location in ipairs(goldbarLocations) do
+        TPTo(location)
+        task.wait(0.2)
+        runtime = Workspace:FindFirstChild("RuntimeItems")
+        if runtime then
+            for _, item in ipairs(runtime:GetChildren()) do
+                if item:IsA("Model") and table.find(targetNames, item.Name) and item.PrimaryPart then
+                    local pos = item.PrimaryPart.Position
+                    if (pos - location).Magnitude < 500 and not wasStored[item] then
+                        table.insert(foundItems, item)
+                    end
+                end
+            end
+        end
     end
-    hiding = false
-    unhideAllVisuals()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-    task.wait(0.3)
-    return
+
+    if #foundItems == 0 then break end -- nothing left to collect
+
+    for i = #foundItems, 1, -1 do
+        local itemToCollect = foundItems[i]
+        local pos = itemToCollect.PrimaryPart.Position
+        local dist = (hrp.Position - pos).Magnitude
+        local targetPos = Vector3.new(pos.X, pos.Y - 5, pos.Z)
+        if dist <= 15 then
+            UseSack()
+            FireStore(itemToCollect)
+        elseif dist <= 500 then
+            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+            tween:Play()
+            tween.Completed:Wait()
+            UseSack()
+            FireStore(itemToCollect)
+        else
+            TPTo(targetPos)
+            UseSack()
+            FireStore(itemToCollect)
+        end
+        wasStored[itemToCollect] = true
+        totalStoreCount = totalStoreCount + 1
+        dropIfFull()
+        task.wait(0.5)
+        if totalStoreCount >= maxStoreCount then break end
+    end
+    -- Drop any leftovers
+    dropIfFull()
 end
 
-dropIfFull()
+-- Final drop and cleanup
+TPTo(storageLocation)
+local itemCount = getSackCount()
+if itemCount and itemCount > 0 then
+    FireDrop(itemCount)
+end
 hiding = false
 unhideAllVisuals()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
