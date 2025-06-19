@@ -18,7 +18,7 @@ local function sitOnSeat(seat)
     end
 end
 
-for z = 30000, -49032.99, -1250 do
+for z = 30000, -49032.99, -250 do
     local tween = TweenService:Create(
         hrp,
         TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
