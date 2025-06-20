@@ -371,3 +371,8 @@ Tabs.Credits:Button({
         end
     end,
 })
+
+Tabs.Credits:Section({
+    Title = "Credits to Chonky And KingKM (The other 2 devs)",
+    Color = Color3.fromRGB(255, 200, 0) -- You can change color if you want
+})
