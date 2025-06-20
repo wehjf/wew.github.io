@@ -5,7 +5,7 @@ local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid")
 
 local maximGunTP = Vector3.new(57, -5, -9000)
-local afterHorseTP = Vector3.new(57, 7, 30000)
+local afterHorseTP = Vector3.new(147, 10, 29928)
 local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 20
 
 local pathPoints = {
