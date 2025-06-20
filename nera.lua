@@ -357,7 +357,7 @@ Tabs.Credits:Section({
 Tabs.Credits:Divider()
 
 Tabs.Credits:Button({
-    Title = "Ringta Discord",
+    Title = "JOIN DISCORD SERVER RINGTA",
     Description = "Click to copy discord.gg/ringta to clipboard",
     Callback = function()
         setclipboard("discord.gg/ringta")
