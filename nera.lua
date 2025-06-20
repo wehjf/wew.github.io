@@ -172,7 +172,7 @@ local function startRoutine()
             task.wait(2)
             hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
             task.wait(2)
-            hrp.CFrame = afterHorseTP
+            hrp.CFrame = CFrame.new(afterHorseTP)
             return
         else task.wait(retryDelay) end
     end
