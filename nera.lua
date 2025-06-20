@@ -1,236 +1,338 @@
-local Players, Workspace, ReplicatedStorage = game:GetService("Players"), game:GetService("Workspace"), game:GetService("ReplicatedStorage")
-local plr = Players.LocalPlayer
-local character = plr.Character or plr.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid")
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-local maximGunTP = Vector3.new(57, -5, -9000)
-local afterHorseTP = Vector3.new(57, 7, 30000)
-local tpInterval, horseScanInterval, retryDelay = 0.8, 0.15, 20
-local radius, updateInterval = 2000, 1
+local Window = WindUI:CreateWindow({
+    Folder = "Ringta Scripts",   
+    Title = "RINGTA SCRIPTS",
+    Icon = "star",
+    Author = "ringta",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(500, 350),
+    HasOutline = true,
+})
 
-local pathPoints = {
-    Vector3.new(13.66, 20, 29620.67), Vector3.new(-15.98, 20, 28227.97), Vector3.new(-63.54, 20, 26911.59),
-    Vector3.new(-15.98, 20, 28227.97), Vector3.new(-75.71, 20, 25558.11), Vector3.new(-49.51, 20, 24038.67),
-    Vector3.new(-34.48, 20, 22780.89), Vector3.new(-63.71, 20, 21477.32), Vector3.new(-84.23, 20, 19970.94),
-    Vector3.new(-84.76, 20, 18676.13), Vector3.new(-87.32, 20, 17246.92), Vector3.new(-95.48, 20, 15988.29),
-    Vector3.new(-93.76, 20, 14597.43), Vector3.new(-86.29, 20, 13223.68), Vector3.new(-97.56, 20, 11824.61),
-    Vector3.new(-92.71, 20, 10398.51), Vector3.new(-98.43, 20, 9092.45), Vector3.new(-90.89, 20, 7741.15),
-    Vector3.new(-86.46, 20, 6482.59), Vector3.new(-77.49, 20, 5081.21), Vector3.new(-73.84, 20, 3660.66),
-    Vector3.new(-73.84, 20, 2297.51), Vector3.new(-76.56, 20, 933.68), Vector3.new(-81.48, 20, -429.93),
-    Vector3.new(-83.47, 20, -1683.45), Vector3.new(-94.18, 20, -3035.25), Vector3.new(-109.96, 20, -4317.15),
-    Vector3.new(-119.63, 20, -5667.43), Vector3.new(-118.63, 20, -6942.88), Vector3.new(-118.09, 20, -8288.66),
-    Vector3.new(-132.12, 20, -9690.39), Vector3.new(-122.83, 20, -11051.38), Vector3.new(-117.53, 20, -12412.74),
-    Vector3.new(-119.81, 20, -13762.14), Vector3.new(-126.27, 20, -15106.33), Vector3.new(-134.45, 20, -16563.82),
-    Vector3.new(-129.85, 20, -17884.73), Vector3.new(-127.23, 20, -19234.89), Vector3.new(-133.49, 20, -20584.07),
-    Vector3.new(-137.89, 20, -21933.47), Vector3.new(-139.93, 20, -23272.51), Vector3.new(-144.12, 20, -24612.54),
-    Vector3.new(-142.93, 20, -25962.13), Vector3.new(-149.21, 20, -27301.58), Vector3.new(-156.19, 20, -28640.93),
-    Vector3.new(-164.87, 20, -29990.78), Vector3.new(-177.65, 20, -31340.21), Vector3.new(-184.67, 20, -32689.24),
-    Vector3.new(-208.92, 20, -34027.44), Vector3.new(-227.96, 20, -35376.88), Vector3.new(-239.45, 20, -36726.59),
-    Vector3.new(-250.48, 20, -38075.91), Vector3.new(-260.28, 20, -39425.56), Vector3.new(-274.86, 20, -40764.67),
-    Vector3.new(-297.45, 20, -42103.61), Vector3.new(-321.64, 20, -43442.59), Vector3.new(-356.78, 20, -44771.52),
-    Vector3.new(-387.68, 20, -46100.94), Vector3.new(-415.83, 20, -47429.85), Vector3.new(-452.39, 20, -49407.44),
+Window:EditOpenButton({
+    Title = "Open RINGTA SCRIPTS",
+    Icon = "monitor",
+    CornerRadius = UDim.new(0, 6),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
+    Draggable = false,
+})
+
+local Tabs = {
+    Main = Window:Tab({ Title = "Main", Icon = "star" }),
+    Other = Window:Tab({ Title = "Other", Icon = "tool" }),
+    Towns = Window:Tab({ Title = "Towns", Icon = "map" }),
+    Bypass = Window:Tab({ Title = "OTHER TP", Icon = "rocket" }),
+    Features = Window:Tab({ Title = "Features", Icon = "bolt" }),
+    Transformation = Window:Tab({ Title = "Transformation", Icon = "zap" }),
+    Credits = Window:Tab({ Title = "CREDITS", Icon = "award" }),
 }
 
-local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
-local hideLoopStarted, hideLoopShouldRun, showLoopStarted = false, true, false
+-- MAIN TAB BUTTONS
+Tabs.Main:Button({
+    Title = "AUTO HIT OP",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/AUTOHITNEW.github.io/refs/heads/main/NEWHIT.lua"))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP to Train",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/NEWTPTRAIN.github.io/refs/heads/main/TRAIN.LUA"))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP to Sterling",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ringtaa/sterlingnotifcation.github.io/refs/heads/main/Sterling.lua'))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP to TeslaLab",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ringtaa/tptotesla.github.io/refs/heads/main/Tptotesla.lua'))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP to Castle",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/castletpfast.github.io/refs/heads/main/FASTCASTLE.lua"))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP StillWater Prision",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/StillwaterPrisontp.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "Tp To Fort",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/Tpfort.github.io/refs/heads/main/Tpfort.lua"))()
+    end,
+})
+Tabs.Main:Button({
+    Title = "TP to Unicorn",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hbjrev/erhjf.github.io/refs/heads/main/hew.lua"))()
+    end,
+})
 
-local function isInRuntimeItems(instance)
-    return runtimeItems and instance:IsDescendantOf(runtimeItems)
-end
+-- OTHER TAB BUTTONS & TOGGLES
+Tabs.Other:Button({
+    Title = "TP to End",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hbjrev/NEWNEWtpend.github.io/refs/heads/main/en.lua"))()
+    end,
+})
+Tabs.Other:Button({
+    Title = "TP to Bank",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/Tptobank.github.io/refs/heads/main/Banktp.lua"))()
+    end,
+})
 
-local function hideVisuals(instance)
-    if isInRuntimeItems(instance) then return end
-    if instance:IsA("BasePart") then
-        instance.LocalTransparencyModifier = 1
-        instance.CanCollide = false
-    elseif instance:IsA("Decal") or instance:IsA("Texture") then
-        instance.Transparency = 1
-    elseif instance:IsA("Beam") or instance:IsA("Trail") then
-        instance.Enabled = false
+local gunKillAuraActive = false
+Tabs.Other:Toggle({
+    Title = "Gun Aura (Kill Mobs)",
+    Default = false,
+    Callback = function(state)
+        gunKillAuraActive = state
+        if state then
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/NEWKILLAURA.github.io/refs/heads/main/NEWkill.lua"))()
+        end
+    end,
+})
+
+local Noclip = false
+Tabs.Other:Toggle({
+    Title = "Noclip",
+    Default = false,
+    Callback = function(state)
+        Noclip = state
     end
+})
+
+local antiVoidActive = false
+Tabs.Other:Toggle({
+    Title = "Anti-Void",
+    Default = false,
+    Callback = function(state)
+        antiVoidActive = state
+    end,
+})
+
+Tabs.Other:Button({
+    Title = "Train Kill Aura",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hbjrev/trainkillaura.github.io/refs/heads/main/trainkill.lua"))()
+    end,
+})
+
+-- TOWNS TAB BUTTONS
+for i = 1, 6 do
+    Tabs.Towns:Button({
+        Title = "Town " .. i,
+        Callback = function()
+            loadstring(game:HttpGet(("https://raw.githubusercontent.com/ringta9321/tptown%d.github.io/refs/heads/main/town%d.lua"):format(i, i)))()
+        end,
+    })
 end
 
-local function showVisuals()
-    local character = plr.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local origin = character.HumanoidRootPart.Position
-        for _, instance in ipairs(Workspace:GetDescendants()) do
-            if instance:IsA("BasePart") and (instance.Position - origin).Magnitude <= radius then
-                instance.LocalTransparencyModifier = 0
-                instance.CanCollide = true
-            elseif (instance:IsA("Decal") or instance:IsA("Texture")) and instance:IsDescendantOf(Workspace) then
-                local parent = instance.Parent
-                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
-                    instance.Transparency = 0
+-- BYPASS TAB BUTTONS
+Tabs.Bypass:Button({
+    Title = "Jade Sword",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/fjruie/tpjadesword.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+Tabs.Bypass:Button({
+    Title = "Jade Mask",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/jademask.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+Tabs.Bypass:Button({
+    Title = "Tp To End",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hbjrev/newtpend.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+Tabs.Bypass:Button({
+    Title = "Tp Trading Post",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hbjrev/trading.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+
+-- FEATURES TAB BUTTONS & FLY
+Tabs.Features:Button({
+    Title = "Collect All",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/collectall.github.io/refs/heads/main/ringta.lua"))()
+    end,
+})
+Tabs.Features:Button({
+    Title = "Auto Electrocutioner",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/Electrocutioner.github.io/refs/heads/main/tesla.lua"))()
+    end,
+})
+
+local flyEnabled = false
+local flySpeed = 50
+local flyConnection = nil
+
+Tabs.Features:Slider({
+    Title = "Fly Speed",
+    Step = 1,
+    Value = {Min = 10, Max = 1000, Default = 50},
+    Callback = function(val)
+        flySpeed = val
+    end
+})
+
+Tabs.Features:Toggle({
+    Title = "Fly",
+    Default = false,
+    Callback = function(state)
+        flyEnabled = state
+        if state then
+            local Players = game:GetService("Players")
+            local RunService = game:GetService("RunService")
+            local UserInputService = game:GetService("UserInputService")
+            local Workspace = game:GetService("Workspace")
+            local LocalPlayer = Players.LocalPlayer
+            local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+            local velocityHandlerName = "VelocityHandler"
+            local gyroHandlerName = "GyroHandler"
+            local controlModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
+            local root = HumanoidRootPart
+            local camera = Workspace.CurrentCamera
+            local v3inf = Vector3.new(9e9, 9e9, 9e9)
+            local bv = Instance.new("BodyVelocity")
+            bv.Name = velocityHandlerName
+            bv.Parent = root
+            bv.MaxForce = v3inf
+            bv.Velocity = Vector3.new()
+            local bg = Instance.new("BodyGyro")
+            bg.Name = gyroHandlerName
+            bg.Parent = root
+            bg.MaxTorque = v3inf
+            bg.P = 1000
+            bg.D = 50
+            flyConnection = RunService.RenderStepped:Connect(function()
+                if not flyEnabled then return end
+                local VelocityHandler = root:FindFirstChild(velocityHandlerName)
+                local GyroHandler = root:FindFirstChild(gyroHandlerName)
+                if VelocityHandler and GyroHandler then
+                    GyroHandler.CFrame = camera.CFrame
+                    local direction = controlModule:GetMoveVector()
+                    VelocityHandler.Velocity =
+                        (camera.CFrame.RightVector * direction.X * flySpeed) +
+                        (-camera.CFrame.LookVector * direction.Z * flySpeed)
                 end
-            elseif (instance:IsA("Beam") or instance:IsA("Trail")) and instance:IsDescendantOf(Workspace) then
-                local parent = instance.Parent
-                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
-                    instance.Enabled = true
-                end
-            end
-        end
-    end
-end
-
-local function startHideLoop()
-    if hideLoopStarted then return end
-    hideLoopStarted, hideLoopShouldRun = true, true
-    task.spawn(function()
-        while hideLoopShouldRun do
-            for _, instance in ipairs(Workspace:GetDescendants()) do
-                hideVisuals(instance)
-            end
-            task.wait(updateInterval)
-        end
-    end)
-end
-
-local function stopHideLoop() hideLoopShouldRun = false end
-
-local function startShowLoop()
-    if showLoopStarted then return end
-    showLoopStarted = true
-    task.spawn(function()
-        while true do showVisuals(); task.wait(updateInterval) end
-    end)
-end
-
-local function getSackCount()
-    local c = plr.Character
-    local s = c and c:FindFirstChild("Sack") or plr.Backpack:FindFirstChild("Sack")
-    local l = s and s:FindFirstChild("BillboardGui") and s.BillboardGui:FindFirstChild("TextLabel")
-    return l and tonumber(l.Text:match("^(%d+)/")) or nil
-end
-
-local function destroyBookcases()
-    local castle = Workspace:FindFirstChild("VampireCastle")
-    if castle then
-        for _, d in ipairs(castle:GetDescendants()) do
-            if d:IsA("Model") and d.Name == "Bookcase" then d:Destroy() end
-        end
-    end
-end
-
-local function getMaximGunSeat()
-    destroyBookcases()
-    local ri = Workspace:FindFirstChild("RuntimeItems")
-    for _, g in ipairs(ri and ri:GetChildren() or {}) do
-        if g.Name == "MaximGun" then
-            return g:FindFirstChildWhichIsA("VehicleSeat")
-        end
-    end
-end
-
-local function sitAndJumpOutSeat(seat)
-    local jumped = false
-    while true do
-        if humanoid.SeatPart ~= seat then
-            hrp.CFrame = seat.CFrame; task.wait(0.1)
+            end)
         else
-            local weld = seat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
-                if not jumped then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    task.wait(0.15)
-                    hrp.CFrame = seat.CFrame
-                    jumped = true
-                else break end
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            -- Optionally remove BodyVelocity and BodyGyro
+            local LocalPlayer = game:GetService("Players").LocalPlayer
+            local Character = LocalPlayer.Character
+            if Character then
+                local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+                if HumanoidRootPart then
+                    local bv = HumanoidRootPart:FindFirstChild("VelocityHandler")
+                    if bv then bv:Destroy() end
+                    local bg = HumanoidRootPart:FindFirstChild("GyroHandler")
+                    if bg then bg:Destroy() end
+                end
             end
         end
     end
-end
+})
 
-local function findHorse()
-    local f = Workspace:FindFirstChild("Baseplates")
-    f = f and f:FindFirstChild("Baseplate")
-    f = f and f:FindFirstChild("CenterBaseplate")
-    f = f and f:FindFirstChild("Animals")
-    if not f then return nil, nil end
-    for _, obj in ipairs(f:GetChildren()) do
-        if obj:IsA("Model") and obj.Name == "Model_Horse" then
-            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if part then return obj, part.Position end
+Tabs.Features:Button({
+    Title = "Fly Off",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/un.github.io/refs/heads/main/ufly.lua"))()
+    end,
+})
+
+-- Runtime toggles (Noclip, AntiVoid)
+game:GetService('RunService').Stepped:Connect(function()
+    if Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
         end
     end
-    return nil, nil
-end
-
-local function claimHorseLoop(model)
-    local lastPos, storeTries = nil, 0
-    while model and model.Parent do
-        local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-        if not part then break end
-        local pos = part.Position
-        if not lastPos or (pos - lastPos).Magnitude > 2 then
-            hrp.CFrame = CFrame.new(pos.X, pos.Y + 4, pos.Z)
-            lastPos = pos
+    if antiVoidActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if LocalPlayer.Character.HumanoidRootPart.Position.Y < -1 then
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/NEWTPTRAIN.github.io/refs/heads/main/TRAIN.LUA"))()
         end
-        humanoid.Jump = true
-        ReplicatedStorage.Remotes.StoreItem:FireServer(model)
-        storeTries = storeTries + 1
-        task.wait(0.15)
-        if getSackCount() == 1 then return pos, true end
-        if storeTries >= 5 then return pos, false end
     end
-    return lastPos, false
-end
-
--- EQUIP SACK AFTER 4 SECONDS
-local function UseSack()
-    local sack = plr.Backpack:FindFirstChild("Sack")
-    if sack then
-        character:WaitForChild("Humanoid"):EquipTool(sack)
-        return true
-    end
-    return false
-end
-task.spawn(function()
-    task.wait(4)
-    UseSack()
 end)
 
-local function startRoutine()
-    while true do
-        hrp.CFrame = CFrame.new(maximGunTP)
-        task.wait(0.5)
-        local seat = getMaximGunSeat()
-        if seat then seat.Disabled = false; sitAndJumpOutSeat(seat); break else task.wait(1) end
-    end
 
-    while true do
-        local horseClaimed, horseLastPos = false
-        for i, pt in ipairs(pathPoints) do
-            hrp.CFrame = CFrame.new(pt)
-            if i == 1 then
-                task.spawn(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-                end)
-            end
-            if i == 2 then startHideLoop() end
-            local t0 = tick()
-            while tick() - t0 < tpInterval do
-                local model, pos = findHorse()
-                if model and pos then
-                    stopHideLoop()
-                    startShowLoop()
-                    -- visuals are shown immediately on horse found
-                    horseLastPos, horseClaimed = claimHorseLoop(model)
-                    break
-                end
-                task.wait(horseScanInterval)
-            end
-            if horseClaimed then break end
+
+Tabs.Transformation:Divider()
+Tabs.Transformation:Section({
+    Title = "NOTE: YOU NEED TO HOLD OUT\n VAMPIRE KNIFE TO MAKE\n THE MORPHS WORK",
+    Color = Color3.fromRGB(255, 80, 80)
+})
+Tabs.Transformation:Divider()
+
+Tabs.Transformation:Button({
+    Title = "Goliath Morph",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/absscidii/Goliath/refs/heads/main/Script",true))()
+    end,
+})
+
+Tabs.Transformation:Divider()
+
+Tabs.Transformation:Button({
+    Title = "Eggstravaganza Morph",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/absscidii/BigBlackBallsBunny/refs/heads/main/Lol",true))()
+    end,
+})
+
+Tabs.Transformation:Divider()
+
+Tabs.Transformation:Section({
+    Title = "credit to cursed_pink_sheep",
+    Color = Color3.fromRGB(255, 200, 0)
+})
+
+
+Tabs.Credits:Section({
+    Title = "MADE BY RINGTA",
+    Color = Color3.fromRGB(0, 200, 255)
+})
+
+Tabs.Credits:Divider()
+
+Tabs.Credits:Button({
+    Title = "Ringta Discord",
+    Description = "Click to copy discord.gg/ringta to clipboard",
+    Callback = function()
+        setclipboard("discord.gg/ringta")
+        -- Optional: Notify the user
+        if Window.Notify then
+            Window:Notify({
+                Title = "Copied!",
+                Content = "Discord invite copied to clipboard.",
+                Duration = 3,
+            })
         end
-        if horseClaimed and horseLastPos then
-            task.wait(2)
-            hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
-            task.wait(2)
-            hrp.CFrame = afterHorseTP
-            return
-        else task.wait(retryDelay) end
-    end
-end
-
-startRoutine()
+    end,
+})
