@@ -8,7 +8,7 @@ local hrp = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
 
 local maximGunTP = Vector3.new(57, -5, -9000)
-local afterUnicornTP = Vector3.new(57, 5, 30000)
+local afterHorseTP = Vector3.new(57, 3, 30000) -- updated destination
 
 local pathPoints = {
     Vector3.new(13.66, 20, 29620.67),
@@ -74,7 +74,7 @@ local pathPoints = {
 }
 
 local tpInterval = 0.8
-local unicornScanInterval = 0.15
+local horseScanInterval = 0.15
 local retryDelay = 20
 
 local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
@@ -154,7 +154,6 @@ local function startShowLoop()
     end)
 end
 
--- Sack count checker
 local function getSackCount()
     local character = player.Character
     local sack = character and character:FindFirstChild("Sack") or player.Backpack:FindFirstChild("Sack")
@@ -214,29 +213,15 @@ local function sitAndJumpOutSeat(seat)
     end
 end
 
-local jumpDisabled = false
-local function disableJump()
-    if humanoid then
-        jumpDisabled = true
-        humanoid.JumpPower = 0
-        humanoid.JumpHeight = 0
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-        humanoid.Jump = false
-    end
-end
-
-local function enableJump()
-    if humanoid then
-        jumpDisabled = false
-        humanoid.JumpPower = 50
-        humanoid.JumpHeight = 7.2
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-    end
-end
-
-local function findUnicorn()
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name == "Model_Unicorn" then
+-- Optimized: Only search for horses in the Animals folder
+local function findHorse()
+    local animalsFolder = Workspace:FindFirstChild("Baseplates")
+        and Workspace.Baseplates:FindFirstChild("Baseplate")
+        and Workspace.Baseplates.Baseplate:FindFirstChild("CenterBaseplate")
+        and Workspace.Baseplates.Baseplate.CenterBaseplate:FindFirstChild("Animals")
+    if not animalsFolder then return nil, nil end
+    for _, obj in ipairs(animalsFolder:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Model_Horse" then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
             if part then
                 return obj, part.Position
@@ -246,10 +231,7 @@ local function findUnicorn()
     return nil, nil
 end
 
--- NO fly movement control
-
--- Try to claim unicorn, give up after 5 failed tries and always re-enable jump before ending
-local function claimUnicornLoop(model)
+local function claimHorseLoop(model)
     local lastPos = nil
     local storeTries = 0
     while model and model.Parent do
@@ -260,7 +242,7 @@ local function claimUnicornLoop(model)
             hrp.CFrame = CFrame.new(pos.X, pos.Y + 5, pos.Z)
             lastPos = pos
         end
-        if not jumpDisabled then humanoid.Jump = true end
+        humanoid.Jump = true
         ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("StoreItem"):FireServer(model)
         storeTries = storeTries + 1
         task.wait(0.15)
@@ -268,7 +250,6 @@ local function claimUnicornLoop(model)
             return pos, true
         end
         if storeTries >= 5 then
-            -- Give up after 5 failed tries
             return pos, false
         end
     end
@@ -291,9 +272,9 @@ local function startRoutine()
     end
 
     while true do
-        local unicornClaimed = false
-        local unicornLastPos
-        local unicornClaimSuccess = false
+        local horseClaimed = false
+        local horseLastPos
+        local horseClaimSuccess = false
         for i, pt in ipairs(pathPoints) do
             hrp.CFrame = CFrame.new(pt)
             if i == 1 then
@@ -301,33 +282,29 @@ local function startRoutine()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
                 end)
             end
-            -- No startMoveForward() anywhere!
             if i == 2 then
                 startHideLoop()
             end
-            if i == 3 then
-                disableJump()
-            end
             local t0 = tick()
             while tick() - t0 < tpInterval do
-                local model, pos = findUnicorn()
+                local model, pos = findHorse()
                 if model and pos then
                     stopHideLoop()
                     startShowLoop()
-                    unicornLastPos, unicornClaimSuccess = claimUnicornLoop(model)
-                    unicornClaimed = true
+                    horseLastPos, horseClaimSuccess = claimHorseLoop(model)
+                    horseClaimed = true
                     break
                 end
-                task.wait(unicornScanInterval)
+                task.wait(horseScanInterval)
             end
-            if unicornClaimed then break end
+            if horseClaimed then break end
         end
-        if unicornClaimed and unicornLastPos then
-            hrp.CFrame = CFrame.new(unicornLastPos.X, unicornLastPos.Y + 80, unicornLastPos.Z)
+        if horseClaimed and horseLastPos then
             task.wait(2)
-            hrp.CFrame = afterUnicornTP
-            enableJump()
-            return -- END SCRIPT after giving up or success
+            hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
+            task.wait(2)
+            hrp.CFrame = afterHorseTP
+            return
         else
             task.wait(retryDelay)
         end
