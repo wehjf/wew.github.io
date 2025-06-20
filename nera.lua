@@ -181,6 +181,24 @@ task.spawn(function()
     UseSack()
 end)
 
+local function robustAfterHorseTP()
+    -- Robust afterHorseTP arrival check: only proceed if you're really there for at least 1 second
+    local stayStart = nil
+    while true do
+        hrp.CFrame = CFrame.new(afterHorseTP)
+        if (hrp.Position - afterHorseTP).Magnitude < 10 then
+            if not stayStart then
+                stayStart = tick()
+            elseif tick() - stayStart >= 1 then
+                break
+            end
+        else
+            stayStart = nil
+        end
+        task.wait(0.1)
+    end
+end
+
 local function startRoutine()
     -- Initial maxim gun sit/jump-out logic
     while true do
@@ -225,8 +243,7 @@ local function startRoutine()
             task.wait(2)
             hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
             task.wait(2)
-            hrp.CFrame = CFrame.new(afterHorseTP)
-            task.wait(1)
+            robustAfterHorseTP()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
         else
             task.wait(retryDelay)
