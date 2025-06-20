@@ -57,22 +57,14 @@ local function getMaximGunSeat()
     end
 end
 
-local function sitAndJumpOutSeat(seat)
-    local jumped = false
-    while true do
-        if humanoid.SeatPart ~= seat then
-            hrp.CFrame = seat.CFrame; task.wait(0.1)
-        else
-            local weld = seat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
-                if not jumped then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    task.wait(0.15)
-                    hrp.CFrame = seat.CFrame
-                    jumped = true
-                else break end
-            end
-        end
+local function ensureSeatedInMaximGun()
+    local seat = getMaximGunSeat()
+    if seat and humanoid.SeatPart ~= seat then
+        repeat
+            hrp.CFrame = seat.CFrame
+            seat.Disabled = false
+            task.wait(0.1)
+        until humanoid.SeatPart == seat or not seat.Parent
     end
 end
 
@@ -148,6 +140,9 @@ end
 local function claimHorseLoop(model)
     local lastPos, storeTries = nil, 0
     while model and model.Parent do
+        -- Ensure we're always in maxim gun unless about to finish
+        ensureSeatedInMaximGun()
+
         local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
         if not part then break end
         local pos = part.Position
@@ -180,16 +175,21 @@ task.spawn(function()
 end)
 
 local function startRoutine()
+    -- Initial maxim gun sit
     while true do
         hrp.CFrame = CFrame.new(maximGunTP)
         task.wait(0.5)
-        local seat = getMaximGunSeat()
-        if seat then seat.Disabled = false; sitAndJumpOutSeat(seat); break else task.wait(1) end
+        ensureSeatedInMaximGun()
+        if humanoid.SeatPart and humanoid.SeatPart.Name == "MaximGun" then break end
+        task.wait(1)
     end
 
-    while true do
+    local finished = false
+    while not finished do
         local horseClaimed, horseLastPos = false
         for i, pt in ipairs(pathPoints) do
+            -- Always check and restore maxim gun seat before each path point
+            ensureSeatedInMaximGun()
             hrp.CFrame = CFrame.new(pt)
             if i == 1 then
                 task.spawn(function()
@@ -198,6 +198,7 @@ local function startRoutine()
             end
             local t0 = tick()
             while tick() - t0 < tpInterval do
+                ensureSeatedInMaximGun()
                 local model, pos = findHorse()
                 if model and pos and not isOutlawNearby(pos, 50) then
                     horseLastPos, horseClaimed = claimHorseLoop(model)
@@ -208,14 +209,16 @@ local function startRoutine()
             if horseClaimed then break end
         end
         if horseClaimed and horseLastPos then
+            finished = true
             task.wait(2)
             hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
             task.wait(2)
             hrp.CFrame = CFrame.new(afterHorseTP)
             task.wait(1)
             loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-            return
-        else task.wait(retryDelay) end
+        else
+            task.wait(retryDelay)
+        end
     end
 end
 
