@@ -87,7 +87,6 @@ local function sitAndJumpOutSeat(seat)
     end
 end
 
--- Find a horse that is NOT near an outlaw (anywhere in Workspace or Animals)
 local function findSafeHorse()
     local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
     local function outlawNearby(pos)
@@ -101,7 +100,7 @@ local function findSafeHorse()
                 for _, outlawName in ipairs(outlawNames) do
                     if obj:IsA("Model") and obj.Name == outlawName then
                         local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                        if part and (part.Position - pos).Magnitude <= 50 then
+                        if part and (part.Position - pos).Magnitude <= 100 then
                             return true
                         end
                     end
@@ -115,7 +114,7 @@ local function findSafeHorse()
                 for _, outlawName in ipairs(outlawNames) do
                     if obj:IsA("Model") and obj.Name == outlawName then
                         local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                        if part and (part.Position - pos).Magnitude <= 50 then
+                        if part and (part.Position - pos).Magnitude <= 100 then
                             return true
                         end
                     end
@@ -187,7 +186,6 @@ task.spawn(function()
 end)
 
 local function robustAfterHorseTP()
-    -- Robust afterHorseTP arrival check: only proceed if you're really there for at least 1 second
     local stayStart = nil
     while true do
         hrp.CFrame = CFrame.new(afterHorseTP)
