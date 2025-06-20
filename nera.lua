@@ -7,6 +7,7 @@ local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitFo
 local maximGunTP = Vector3.new(57, -5, -9000)
 local afterHorseTP = Vector3.new(147, 10, 29928)
 local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 20
+local outlawDetectRadius = 100
 
 local pathPoints = {
     Vector3.new(13.66, 20, 29620.67), Vector3.new(-15.98, 20, 28227.97), Vector3.new(-63.54, 20, 26911.59),
@@ -87,49 +88,17 @@ local function sitAndJumpOutSeat(seat)
     end
 end
 
-local function findSafeHorse()
-    local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
-    local function outlawNearby(pos)
-        local animals = Workspace:FindFirstChild("Baseplates")
-        animals = animals and animals:FindFirstChild("Baseplate")
-        animals = animals and animals:FindFirstChild("CenterBaseplate")
-        animals = animals and animals:FindFirstChild("Animals")
-        if animals then
-            for _, obj in ipairs(animals:GetChildren()) do
-                for _, outlawName in ipairs(outlawNames) do
-                    if obj:IsA("Model") and obj.Name == outlawName then
-                        local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                        if part and (part.Position - pos).Magnitude <= 100 then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-        local runtime = Workspace:FindFirstChild("RuntimeItems")
-        if runtime then
-            for _, obj in ipairs(runtime:GetChildren()) do
-                for _, outlawName in ipairs(outlawNames) do
-                    if obj:IsA("Model") and obj.Name == outlawName then
-                        local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                        if part and (part.Position - pos).Magnitude <= 100 then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-        return false
-    end
-
+-- Returns true if ANY Model_RevolverOutlaw is within outlawDetectRadius of ANY horse
+local function isAnyHorseNearRevolverOutlaw()
+    local horsePositions = {}
+    -- Workspace horses
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj.Name == "Model_Horse" then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if part and not outlawNearby(part.Position) then
-                return obj, part.Position
-            end
+            if part then table.insert(horsePositions, part.Position) end
         end
     end
+    -- Animals horses
     local animals = Workspace:FindFirstChild("Baseplates")
     animals = animals and animals:FindFirstChild("Baseplate")
     animals = animals and animals:FindFirstChild("CenterBaseplate")
@@ -138,7 +107,84 @@ local function findSafeHorse()
         for _, obj in ipairs(animals:GetChildren()) do
             if obj:IsA("Model") and obj.Name == "Model_Horse" then
                 local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                if part and not outlawNearby(part.Position) then
+                if part then table.insert(horsePositions, part.Position) end
+            end
+        end
+    end
+    -- Check all Model_RevolverOutlaw
+    local function checkOutlawContainer(container)
+        if container then
+            for _, obj in ipairs(container:GetChildren()) do
+                if obj:IsA("Model") and obj.Name == "Model_RevolverOutlaw" then
+                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        for _, hpos in ipairs(horsePositions) do
+                            if (part.Position - hpos).Magnitude <= outlawDetectRadius then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return false
+    end
+    if checkOutlawContainer(animals) then return true end
+    if checkOutlawContainer(Workspace:FindFirstChild("RuntimeItems")) then return true end
+    return false
+end
+
+local function findSafeHorse()
+    -- Returns a horse NOT near ANY Model_RevolverOutlaw within outlawDetectRadius, or nil if none
+    local function isHorseSafe(pos)
+        -- Animals outlaws
+        local animals = Workspace:FindFirstChild("Baseplates")
+        animals = animals and animals:FindFirstChild("Baseplate")
+        animals = animals and animals:FindFirstChild("CenterBaseplate")
+        animals = animals and animals:FindFirstChild("Animals")
+        if animals then
+            for _, obj in ipairs(animals:GetChildren()) do
+                if obj:IsA("Model") and obj.Name == "Model_RevolverOutlaw" then
+                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if part and (part.Position - pos).Magnitude <= outlawDetectRadius then
+                        return false
+                    end
+                end
+            end
+        end
+        -- RuntimeItems outlaws
+        local runtime = Workspace:FindFirstChild("RuntimeItems")
+        if runtime then
+            for _, obj in ipairs(runtime:GetChildren()) do
+                if obj:IsA("Model") and obj.Name == "Model_RevolverOutlaw" then
+                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if part and (part.Position - pos).Magnitude <= outlawDetectRadius then
+                        return false
+                    end
+                end
+            end
+        end
+        return true
+    end
+    -- Workspace horses
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Model_Horse" then
+            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if part and isHorseSafe(part.Position) then
+                return obj, part.Position
+            end
+        end
+    end
+    -- Animals horses
+    local animals = Workspace:FindFirstChild("Baseplates")
+    animals = animals and animals:FindFirstChild("Baseplate")
+    animals = animals and animals:FindFirstChild("CenterBaseplate")
+    animals = animals and animals:FindFirstChild("Animals")
+    if animals then
+        for _, obj in ipairs(animals:GetChildren()) do
+            if obj:IsA("Model") and obj.Name == "Model_Horse" then
+                local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                if part and isHorseSafe(part.Position) then
                     return obj, part.Position
                 end
             end
@@ -212,7 +258,7 @@ local function startRoutine()
         task.wait(1)
     end
 
-    -- After initial sit/jump, start pathing and MaximGun seat maintenance
+    -- Only start horse detection and storage logic after first path point
     local finished = false
     local startedMaximGunLoop = false
     while not finished do
@@ -225,8 +271,14 @@ local function startRoutine()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
                 end)
             end
-            -- Only start horse detection after first tp
+            -- Only start horse detection and storing after first path point
             if startedMaximGunLoop then
+                -- If ANY horse has a Model_RevolverOutlaw within outlawDetectRadius, skip ALL horses at this time
+                if isAnyHorseNearRevolverOutlaw() then
+                    -- Skip this point and continue to next path point
+                    break
+                end
+                -- Otherwise, try to find and claim a safe horse
                 local t0 = tick()
                 local model, pos = nil, nil
                 while tick() - t0 < tpInterval do
@@ -240,7 +292,6 @@ local function startRoutine()
                     break
                 end
             end
-            -- If no safe horse, continue to next path point!
         end
         if horseClaimed and horseLastPos then
             finished = true
