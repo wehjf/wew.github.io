@@ -106,6 +106,23 @@ local function findHorse()
     return nil, nil
 end
 
+local function isOutlawNearby(horsePos, distance)
+    local animals = Workspace:FindFirstChild("Baseplates")
+    animals = animals and animals:FindFirstChild("Baseplate")
+    animals = animals and animals:FindFirstChild("CenterBaseplate")
+    animals = animals and animals:FindFirstChild("Animals")
+    if not animals then return false end
+    for _, obj in ipairs(animals:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Model_RifleOutlaw" then
+            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if part and (part.Position - horsePos).Magnitude <= distance then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function claimHorseLoop(model)
     local lastPos, storeTries = nil, 0
     while model and model.Parent do
@@ -160,7 +177,7 @@ local function startRoutine()
             local t0 = tick()
             while tick() - t0 < tpInterval do
                 local model, pos = findHorse()
-                if model and pos then
+                if model and pos and not isOutlawNearby(pos, 50) then
                     horseLastPos, horseClaimed = claimHorseLoop(model)
                     break
                 end
