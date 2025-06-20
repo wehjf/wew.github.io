@@ -39,8 +39,18 @@ local function isInRuntimeItems(instance)
     return runtimeItems and instance:IsDescendantOf(runtimeItems)
 end
 
+local function isHorse(instance)
+    while instance and instance ~= Workspace do
+        if instance:IsA("Model") and instance.Name == "Model_Horse" then
+            return true
+        end
+        instance = instance.Parent
+    end
+    return false
+end
+
 local function hideVisuals(instance)
-    if isInRuntimeItems(instance) then return end
+    if isInRuntimeItems(instance) or isHorse(instance) then return end
     if instance:IsA("BasePart") then
         instance.LocalTransparencyModifier = 1
         instance.CanCollide = false
@@ -164,7 +174,7 @@ local function claimHorseLoop(model)
         if not part then break end
         local pos = part.Position
         if not lastPos or (pos - lastPos).Magnitude > 2 then
-            hrp.CFrame = CFrame.new(pos.X, pos.Y + 4, pos.Z)
+            hrp.CFrame = CFrame.new(pos.X, pos.Y + 2, pos.Z)
             lastPos = pos
         end
         humanoid.Jump = true
@@ -215,7 +225,6 @@ local function startRoutine()
                 if model and pos then
                     stopHideLoop()
                     startShowLoop()
-                    -- visuals are shown immediately on horse found
                     horseLastPos, horseClaimed = claimHorseLoop(model)
                     break
                 end
