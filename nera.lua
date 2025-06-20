@@ -282,6 +282,41 @@ game:GetService('RunService').Stepped:Connect(function()
 end)
 
 
+local autoBanjoActive = false
+local autoBanjoConnection
+
+Tabs.Features:Toggle({
+    Title = "Auto Banjo",
+    Default = false,
+    Callback = function(state)
+        autoBanjoActive = state
+        if state then
+            -- Start auto banjo loop
+            local v2 = require(game:GetService("ReplicatedStorage").Shared.Remotes)
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            local RunService = game:GetService("RunService")
+
+            autoBanjoConnection = RunService.RenderStepped:Connect(function()
+                local character = LocalPlayer.Character
+                if character then
+                    for _, v in pairs(character:GetChildren()) do
+                        if v.Name == "Banjo" then
+                            v2.Events.PlayBanjo:FireServer(v, 1)
+                        end
+                    end
+                end
+            end)
+        else
+            if autoBanjoConnection then
+                autoBanjoConnection:Disconnect()
+                autoBanjoConnection = nil
+            end
+        end
+    end
+})
+
+
 
 Tabs.Transformation:Divider()
 Tabs.Transformation:Section({
