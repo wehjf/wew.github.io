@@ -258,52 +258,56 @@ local function startRoutine()
         task.wait(1)
     end
 
-    -- Only start horse detection and storage logic after first path point
+    -- Only start horse detection and storage logic after the SECOND path point is reached
     local finished = false
     local startedMaximGunLoop = false
-    while not finished do
-        local horseClaimed, horseLastPos = false
-        for i, pt in ipairs(pathPoints) do
-            hrp.CFrame = CFrame.new(pt)
-            if i == 1 then
-                startedMaximGunLoop = true
-                task.spawn(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-                end)
+    local afterSecondPathPoint = false
+    for i, pt in ipairs(pathPoints) do
+        hrp.CFrame = CFrame.new(pt)
+        if i == 1 then
+            startedMaximGunLoop = true
+            task.spawn(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+            end)
+        elseif i == 2 then
+            afterSecondPathPoint = true
+        end
+
+        if startedMaximGunLoop then ensureSeatedInMaximGun() end
+
+        if afterSecondPathPoint then
+            local horseClaimed, horseLastPos = false, nil
+            -- If ANY horse has a Model_RevolverOutlaw within outlawDetectRadius, skip ALL horses at this time
+            if isAnyHorseNearRevolverOutlaw() then
+                -- Skip this point and continue to next path point
+                continue
             end
-            -- Only start horse detection and storing after first path point
-            if startedMaximGunLoop then
-                -- If ANY horse has a Model_RevolverOutlaw within outlawDetectRadius, skip ALL horses at this time
-                if isAnyHorseNearRevolverOutlaw() then
-                    -- Skip this point and continue to next path point
-                    break
-                end
-                -- Otherwise, try to find and claim a safe horse
-                local t0 = tick()
-                local model, pos = nil, nil
-                while tick() - t0 < tpInterval do
-                    ensureSeatedInMaximGun()
-                    model, pos = findSafeHorse()
-                    if model and pos then break end
-                    task.wait(horseScanInterval)
-                end
-                if model and pos then
-                    horseLastPos, horseClaimed = claimHorseLoop(model, true)
+            -- Otherwise, try to find and claim a safe horse
+            local t0 = tick()
+            local model, pos = nil, nil
+            while tick() - t0 < tpInterval do
+                ensureSeatedInMaximGun()
+                model, pos = findSafeHorse()
+                if model and pos then break end
+                task.wait(horseScanInterval)
+            end
+            if model and pos then
+                horseLastPos, horseClaimed = claimHorseLoop(model, true)
+                if horseClaimed and horseLastPos then
+                    task.wait(2)
+                    hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
+                    task.wait(2)
+                    robustAfterHorseTP()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
                     break
                 end
             end
         end
-        if horseClaimed and horseLastPos then
-            finished = true
-            task.wait(2)
-            hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
-            task.wait(2)
-            robustAfterHorseTP()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-        else
-            task.wait(retryDelay)
-        end
+        task.wait(0.2)
     end
+    -- If not successful, retry after delay
+    task.wait(retryDelay)
+    startRoutine()
 end
 
 startRoutine()
