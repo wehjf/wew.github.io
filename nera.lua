@@ -173,6 +173,8 @@ local function startRoutine()
             hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
             task.wait(2)
             hrp.CFrame = CFrame.new(afterHorseTP)
+            task.wait(1)
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
             return
         else task.wait(retryDelay) end
     end
