@@ -312,3 +312,20 @@ local function startRoutine()
 end
 
 startRoutine()
+
+
+local function UseSack()
+    local sack = plr.Backpack:FindFirstChild("Sack")
+    if sack then
+        character:WaitForChild("Humanoid"):EquipTool(sack)
+        return true
+    end
+    return false
+end
+
+task.spawn(function()
+    task.wait(4)
+    UseSack()
+end)
+
+startRoutine()
