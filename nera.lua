@@ -216,44 +216,48 @@ local function startRoutine()
         task.wait(1)
     end
 
-    -- After initial sit/jump, start pathing and MaximGun seat maintenance
+    -- After initial sit/jump, start pathing and MaximGun seat maintenance after 3rd point
     local finished = false
     local startedMaximGunLoop = false
-    while not finished do
-        local horseClaimed, horseLastPos = false
-        for i, pt in ipairs(pathPoints) do
-            hrp.CFrame = CFrame.new(pt)
-            if i == 1 then
-                startedMaximGunLoop = true
-                task.spawn(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-                end)
-            end
-            -- Only try to find a SAFE horse at each point, otherwise skip to next point!
+    for i, pt in ipairs(pathPoints) do
+        hrp.CFrame = CFrame.new(pt)
+        -- Load the fly script at the 1st point
+        if i == 1 and not startedMaximGunLoop then
+            startedMaximGunLoop = true
+            task.spawn(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+            end)
+        end
+        -- Only start MaximGun seat maintenance and horse tracking after 3rd localpoint
+        local doMaximGunLoop = i > 3
+        if doMaximGunLoop then
+            -- Only try to find a SAFE horse at each point after 3rd
             local t0 = tick()
             local model, pos = nil, nil
             while tick() - t0 < tpInterval do
-                if startedMaximGunLoop then ensureSeatedInMaximGun() end
+                ensureSeatedInMaximGun()
                 model, pos = findSafeHorse()
                 if model and pos then break end
                 task.wait(horseScanInterval)
             end
             if model and pos then
-                horseLastPos, horseClaimed = claimHorseLoop(model, startedMaximGunLoop)
-                break
+                local horseLastPos, horseClaimed = claimHorseLoop(model, true)
+                if horseClaimed and horseLastPos then
+                    finished = true
+                    task.wait(2)
+                    hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
+                    task.wait(2)
+                    robustAfterHorseTP()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
+                    break
+                end
             end
-            -- If no safe horse, continue to next path point!
         end
-        if horseClaimed and horseLastPos then
-            finished = true
-            task.wait(2)
-            hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
-            task.wait(2)
-            robustAfterHorseTP()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-        else
-            task.wait(retryDelay)
-        end
+        if finished then break end
+    end
+    if not finished then
+        task.wait(retryDelay)
+        startRoutine()
     end
 end
 
