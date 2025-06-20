@@ -6,8 +6,7 @@ local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitFo
 
 local maximGunTP = Vector3.new(57, -5, -9000)
 local afterHorseTP = Vector3.new(57, 7, 30000)
-local tpInterval, horseScanInterval, retryDelay = 0.8, 0.15, 20
-local radius, updateInterval = 2000, 1
+local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 20
 
 local pathPoints = {
     Vector3.new(13.66, 20, 29620.67), Vector3.new(-15.98, 20, 28227.97), Vector3.new(-63.54, 20, 26911.59),
@@ -31,81 +30,6 @@ local pathPoints = {
     Vector3.new(-297.45, 20, -42103.61), Vector3.new(-321.64, 20, -43442.59), Vector3.new(-356.78, 20, -44771.52),
     Vector3.new(-387.68, 20, -46100.94), Vector3.new(-415.83, 20, -47429.85), Vector3.new(-452.39, 20, -49407.44),
 }
-
-local runtimeItems = Workspace:FindFirstChild("RuntimeItems")
-local hideLoopStarted, hideLoopShouldRun, showLoopStarted = false, true, false
-
-local function isInRuntimeItems(instance)
-    return runtimeItems and instance:IsDescendantOf(runtimeItems)
-end
-
-local function isHorse(instance)
-    while instance and instance ~= Workspace do
-        if instance:IsA("Model") and instance.Name == "Model_Horse" then
-            return true
-        end
-        instance = instance.Parent
-    end
-    return false
-end
-
-local function hideVisuals(instance)
-    if isInRuntimeItems(instance) or isHorse(instance) then return end
-    if instance:IsA("BasePart") then
-        instance.LocalTransparencyModifier = 1
-        instance.CanCollide = false
-    elseif instance:IsA("Decal") or instance:IsA("Texture") then
-        instance.Transparency = 1
-    elseif instance:IsA("Beam") or instance:IsA("Trail") then
-        instance.Enabled = false
-    end
-end
-
-local function showVisuals()
-    local character = plr.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local origin = character.HumanoidRootPart.Position
-        for _, instance in ipairs(Workspace:GetDescendants()) do
-            if instance:IsA("BasePart") and (instance.Position - origin).Magnitude <= radius then
-                instance.LocalTransparencyModifier = 0
-                instance.CanCollide = true
-            elseif (instance:IsA("Decal") or instance:IsA("Texture")) and instance:IsDescendantOf(Workspace) then
-                local parent = instance.Parent
-                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
-                    instance.Transparency = 0
-                end
-            elseif (instance:IsA("Beam") or instance:IsA("Trail")) and instance:IsDescendantOf(Workspace) then
-                local parent = instance.Parent
-                if parent and parent:IsA("BasePart") and (parent.Position - origin).Magnitude <= radius then
-                    instance.Enabled = true
-                end
-            end
-        end
-    end
-end
-
-local function startHideLoop()
-    if hideLoopStarted then return end
-    hideLoopStarted, hideLoopShouldRun = true, true
-    task.spawn(function()
-        while hideLoopShouldRun do
-            for _, instance in ipairs(Workspace:GetDescendants()) do
-                hideVisuals(instance)
-            end
-            task.wait(updateInterval)
-        end
-    end)
-end
-
-local function stopHideLoop() hideLoopShouldRun = false end
-
-local function startShowLoop()
-    if showLoopStarted then return end
-    showLoopStarted = true
-    task.spawn(function()
-        while true do showVisuals(); task.wait(updateInterval) end
-    end)
-end
 
 local function getSackCount()
     local c = plr.Character
@@ -153,16 +77,31 @@ local function sitAndJumpOutSeat(seat)
 end
 
 local function findHorse()
+    -- Collect all Model_Horse in Workspace (including nested) and Workspace.Baseplates.Baseplate.CenterBaseplate.Animals
+    local found = {}
+    -- Direct children of Workspace
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Model_Horse" then
+            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if part then table.insert(found, {obj, part.Position}) end
+        end
+    end
+    -- Animals folder
     local f = Workspace:FindFirstChild("Baseplates")
     f = f and f:FindFirstChild("Baseplate")
     f = f and f:FindFirstChild("CenterBaseplate")
     f = f and f:FindFirstChild("Animals")
-    if not f then return nil, nil end
-    for _, obj in ipairs(f:GetChildren()) do
-        if obj:IsA("Model") and obj.Name == "Model_Horse" then
-            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if part then return obj, part.Position end
+    if f then
+        for _, obj in ipairs(f:GetChildren()) do
+            if obj:IsA("Model") and obj.Name == "Model_Horse" then
+                local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                if part then table.insert(found, {obj, part.Position}) end
+            end
         end
+    end
+    if #found > 0 then
+        -- Return the first found
+        return found[1][1], found[1][2]
     end
     return nil, nil
 end
@@ -218,13 +157,10 @@ local function startRoutine()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
                 end)
             end
-            if i == 2 then startHideLoop() end
             local t0 = tick()
             while tick() - t0 < tpInterval do
                 local model, pos = findHorse()
                 if model and pos then
-                    stopHideLoop()
-                    startShowLoop()
                     horseLastPos, horseClaimed = claimHorseLoop(model)
                     break
                 end
