@@ -90,7 +90,6 @@ end
 local function findSafeHorse()
     local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
     local function outlawNearby(pos)
-        -- Animals
         local animals = Workspace:FindFirstChild("Baseplates")
         animals = animals and animals:FindFirstChild("Baseplate")
         animals = animals and animals:FindFirstChild("CenterBaseplate")
@@ -107,7 +106,6 @@ local function findSafeHorse()
                 end
             end
         end
-        -- RuntimeItems
         local runtime = Workspace:FindFirstChild("RuntimeItems")
         if runtime then
             for _, obj in ipairs(runtime:GetChildren()) do
@@ -124,7 +122,6 @@ local function findSafeHorse()
         return false
     end
 
-    -- Workspace horses
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj.Name == "Model_Horse" then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
@@ -133,7 +130,6 @@ local function findSafeHorse()
             end
         end
     end
-    -- Animals horses
     local animals = Workspace:FindFirstChild("Baseplates")
     animals = animals and animals:FindFirstChild("Baseplate")
     animals = animals and animals:FindFirstChild("CenterBaseplate")
@@ -229,18 +225,20 @@ local function startRoutine()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
                 end)
             end
-            -- Only try to find a SAFE horse at each point, otherwise skip to next point!
-            local t0 = tick()
-            local model, pos = nil, nil
-            while tick() - t0 < tpInterval do
-                if startedMaximGunLoop then ensureSeatedInMaximGun() end
-                model, pos = findSafeHorse()
-                if model and pos then break end
-                task.wait(horseScanInterval)
-            end
-            if model and pos then
-                horseLastPos, horseClaimed = claimHorseLoop(model, startedMaximGunLoop)
-                break
+            -- Only start horse detection after first tp
+            if startedMaximGunLoop then
+                local t0 = tick()
+                local model, pos = nil, nil
+                while tick() - t0 < tpInterval do
+                    ensureSeatedInMaximGun()
+                    model, pos = findSafeHorse()
+                    if model and pos then break end
+                    task.wait(horseScanInterval)
+                end
+                if model and pos then
+                    horseLastPos, horseClaimed = claimHorseLoop(model, true)
+                    break
+                end
             end
             -- If no safe horse, continue to next path point!
         end
