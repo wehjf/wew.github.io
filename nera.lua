@@ -68,17 +68,33 @@ local function ensureSeatedInMaximGun()
     end
 end
 
+local function sitAndJumpOutSeat(seat)
+    local jumped = false
+    while true do
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame; task.wait(0.1)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
+                if not jumped then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.15)
+                    hrp.CFrame = seat.CFrame
+                    jumped = true
+                else break end
+            end
+        end
+    end
+end
+
 local function findHorse()
-    -- Collect all Model_Horse in Workspace (including nested) and Workspace.Baseplates.Baseplate.CenterBaseplate.Animals
     local found = {}
-    -- Direct children of Workspace
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj.Name == "Model_Horse" then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
             if part then table.insert(found, {obj, part.Position}) end
         end
     end
-    -- Animals folder
     local f = Workspace:FindFirstChild("Baseplates")
     f = f and f:FindFirstChild("Baseplate")
     f = f and f:FindFirstChild("CenterBaseplate")
@@ -92,7 +108,6 @@ local function findHorse()
         end
     end
     if #found > 0 then
-        -- Return the first found
         return found[1][1], found[1][2]
     end
     return nil, nil
@@ -100,8 +115,6 @@ end
 
 local function isOutlawNearby(horsePos, distance)
     local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
-
-    -- Check RuntimeItems
     local runtime = Workspace:FindFirstChild("RuntimeItems")
     if runtime then
         for _, obj in ipairs(runtime:GetChildren()) do
@@ -115,8 +128,6 @@ local function isOutlawNearby(horsePos, distance)
             end
         end
     end
-
-    -- Check Animals
     local animals = Workspace:FindFirstChild("Baseplates")
     animals = animals and animals:FindFirstChild("Baseplate")
     animals = animals and animals:FindFirstChild("CenterBaseplate")
@@ -133,16 +144,13 @@ local function isOutlawNearby(horsePos, distance)
             end
         end
     end
-
     return false
 end
 
-local function claimHorseLoop(model)
+local function claimHorseLoop(model, doMaximGunLoop)
     local lastPos, storeTries = nil, 0
     while model and model.Parent do
-        -- Ensure we're always in maxim gun unless about to finish
-        ensureSeatedInMaximGun()
-
+        if doMaximGunLoop then ensureSeatedInMaximGun() end
         local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
         if not part then break end
         local pos = part.Position
@@ -160,7 +168,6 @@ local function claimHorseLoop(model)
     return lastPos, false
 end
 
--- EQUIP SACK AFTER 4 SECONDS
 local function UseSack()
     local sack = plr.Backpack:FindFirstChild("Sack")
     if sack then
@@ -175,33 +182,38 @@ task.spawn(function()
 end)
 
 local function startRoutine()
-    -- Initial maxim gun sit
+    -- Initial maxim gun sit/jump-out logic
     while true do
         hrp.CFrame = CFrame.new(maximGunTP)
         task.wait(0.5)
-        ensureSeatedInMaximGun()
-        if humanoid.SeatPart and humanoid.SeatPart.Name == "MaximGun" then break end
+        local seat = getMaximGunSeat()
+        if seat then
+            seat.Disabled = false
+            sitAndJumpOutSeat(seat)
+            break
+        end
         task.wait(1)
     end
 
+    -- After initial sit/jump, start pathing and MaximGun seat maintenance
     local finished = false
+    local startedMaximGunLoop = false
     while not finished do
         local horseClaimed, horseLastPos = false
         for i, pt in ipairs(pathPoints) do
-            -- Always check and restore maxim gun seat before each path point
-            ensureSeatedInMaximGun()
             hrp.CFrame = CFrame.new(pt)
             if i == 1 then
+                startedMaximGunLoop = true
                 task.spawn(function()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
                 end)
             end
             local t0 = tick()
             while tick() - t0 < tpInterval do
-                ensureSeatedInMaximGun()
+                if startedMaximGunLoop then ensureSeatedInMaximGun() end
                 local model, pos = findHorse()
                 if model and pos and not isOutlawNearby(pos, 50) then
-                    horseLastPos, horseClaimed = claimHorseLoop(model)
+                    horseLastPos, horseClaimed = claimHorseLoop(model, startedMaximGunLoop)
                     break
                 end
                 task.wait(horseScanInterval)
