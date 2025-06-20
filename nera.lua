@@ -8,7 +8,7 @@ local hrp = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
 
 local maximGunTP = Vector3.new(57, -5, -9000)
-local afterHorseTP = Vector3.new(57, 3, 30000) -- updated destination
+local afterHorseTP = Vector3.new(57, 7, 30000) -- updated destination
 
 local pathPoints = {
     Vector3.new(13.66, 20, 29620.67),
@@ -239,7 +239,7 @@ local function claimHorseLoop(model)
         if not part then break end
         local pos = part.Position
         if not lastPos or (pos - lastPos).Magnitude > 2 then
-            hrp.CFrame = CFrame.new(pos.X, pos.Y + 5, pos.Z)
+            hrp.CFrame = CFrame.new(pos.X, pos.Y + 4, pos.Z)
             lastPos = pos
         end
         humanoid.Jump = true
