@@ -107,19 +107,41 @@ local function findHorse()
 end
 
 local function isOutlawNearby(horsePos, distance)
+    local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
+
+    -- Check RuntimeItems
+    local runtime = Workspace:FindFirstChild("RuntimeItems")
+    if runtime then
+        for _, obj in ipairs(runtime:GetChildren()) do
+            for _, outlawName in ipairs(outlawNames) do
+                if obj:IsA("Model") and obj.Name == outlawName then
+                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if part and (part.Position - horsePos).Magnitude <= distance then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    -- Check Animals
     local animals = Workspace:FindFirstChild("Baseplates")
     animals = animals and animals:FindFirstChild("Baseplate")
     animals = animals and animals:FindFirstChild("CenterBaseplate")
     animals = animals and animals:FindFirstChild("Animals")
-    if not animals then return false end
-    for _, obj in ipairs(animals:GetChildren()) do
-        if obj:IsA("Model") and obj.Name == "Model_RifleOutlaw" then
-            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if part and (part.Position - horsePos).Magnitude <= distance then
-                return true
+    if animals then
+        for _, obj in ipairs(animals:GetChildren()) do
+            for _, outlawName in ipairs(outlawNames) do
+                if obj:IsA("Model") and obj.Name == outlawName then
+                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if part and (part.Position - horsePos).Magnitude <= distance then
+                        return true
+                    end
+                end
             end
         end
     end
+
     return false
 end
 
