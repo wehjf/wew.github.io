@@ -316,7 +316,75 @@ Tabs.Features:Toggle({
     end
 })
 
+-- Place these near the top of your file or Features tab section
+local autoHealBandage = false
+local autoHealSnakeOil = false
+local autoHealThreshold = 40 -- default value
+local autoHealBandageConn, autoHealSnakeOilConn
 
+-- Slider for Health Threshold
+Tabs.Features:Slider({
+    Title = "AutoHeal Threshold",
+    Step = 1,
+    Value = {Min = 1, Max = 80, Default = 40},
+    Callback = function(val)
+        autoHealThreshold = val
+    end
+})
+
+-- Auto Heal with Bandage
+Tabs.Features:Toggle({
+    Title = "Auto Heal (Bandage)",
+    Default = false,
+    Callback = function(state)
+        autoHealBandage = state
+        if state then
+            autoHealBandageConn = game:GetService("RunService").RenderStepped:Connect(function()
+                local char = game.Players.LocalPlayer.Character
+                local hp = char and char:FindFirstChild("Humanoid") and char.Humanoid.Health or 100
+                if hp < autoHealThreshold then
+                    local bp = game.Players.LocalPlayer.Backpack
+                    local bandage = bp:FindFirstChild("Bandage")
+                    if bandage and bandage:FindFirstChild("Use") then
+                        bandage.Use:FireServer()
+                    end
+                end
+            end)
+        else
+            if autoHealBandageConn then
+                autoHealBandageConn:Disconnect()
+                autoHealBandageConn = nil
+            end
+        end
+    end
+})
+
+-- Auto Heal with Snake Oil
+Tabs.Features:Toggle({
+    Title = "Auto Heal (Snake Oil)",
+    Default = false,
+    Callback = function(state)
+        autoHealSnakeOil = state
+        if state then
+            autoHealSnakeOilConn = game:GetService("RunService").RenderStepped:Connect(function()
+                local char = game.Players.LocalPlayer.Character
+                local hp = char and char:FindFirstChild("Humanoid") and char.Humanoid.Health or 100
+                if hp < autoHealThreshold then
+                    local bp = game.Players.LocalPlayer.Backpack
+                    local snakeoil = bp:FindFirstChild("Snake Oil")
+                    if snakeoil and snakeoil:FindFirstChild("Use") then
+                        snakeoil.Use:FireServer(snakeoil)
+                    end
+                end
+            end)
+        else
+            if autoHealSnakeOilConn then
+                autoHealSnakeOilConn:Disconnect()
+                autoHealSnakeOilConn = nil
+            end
+        end
+    end
+})
 
 Tabs.Transformation:Divider()
 Tabs.Transformation:Section({
