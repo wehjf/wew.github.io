@@ -18,6 +18,9 @@ local horseSearchLocations = {
     Vector3.new(-129.85, 20, -17884.73),
     Vector3.new(-127.23, 20, -19234.89),
     Vector3.new(-133.49, 20, -20584.07),
+    Vector3.new(-137.89, 20, -21933.47), 
+    Vector3.new(-139.93, 20, -23272.51), 
+    Vector3.new(-144.12, 20, -24612.54),
 }
 
 local function findAnyHorse()
