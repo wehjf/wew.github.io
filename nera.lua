@@ -7,7 +7,7 @@ local seeds = {
     "Carrot","Strawberry","Blueberry","Orange Tulip","Tomato","Corn",
     "Daffodil","Watermelon","Pumpkin","Apple","Bamboo","Coconut",
     "Cactus","Dragon Fruit","Mango","Grape","Mushroom","Pepper",
-    "Cacao","Beanstalk","Ember Lily"
+    "Cacao","Beanstalk","Ember Lily","Sugar Apple"
 }
 
 local Window = WindUI:CreateWindow({
