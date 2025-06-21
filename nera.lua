@@ -20,45 +20,12 @@ local horseSearchLocations = {
     Vector3.new(-133.49, 20, -20584.07),
 }
 
-local function outlawNearby(pos)
-    local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
-    local animals = Workspace:FindFirstChild("Baseplates")
-    animals = animals and animals:FindFirstChild("Baseplate")
-    animals = animals and animals:FindFirstChild("CenterBaseplate")
-    animals = animals and animals:FindFirstChild("Animals")
-    if animals then
-        for _, obj in ipairs(animals:GetChildren()) do
-            for _, outlawName in ipairs(outlawNames) do
-                if obj:IsA("Model") and obj.Name == outlawName then
-                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                    if part and (part.Position - pos).Magnitude <= 100 then
-                        return true
-                    end
-                end
-            end
-        end
-    end
-    local runtime = Workspace:FindFirstChild("RuntimeItems")
-    if runtime then
-        for _, obj in ipairs(runtime:GetChildren()) do
-            for _, outlawName in ipairs(outlawNames) do
-                if obj:IsA("Model") and obj.Name == outlawName then
-                    local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                    if part and (part.Position - pos).Magnitude <= 100 then
-                        return true
-                    end
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function findSafeHorse()
+local function findAnyHorse()
+    -- Returns ANY Model_Horse regardless of parent or outlaws/anything
     for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") and obj.Name == "Model_Horse" and not obj.Parent then
+        if obj:IsA("Model") and obj.Name == "Model_Horse" then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if part and not outlawNearby(part.Position) then
+            if part then
                 return obj, part.Position
             end
         end
@@ -69,9 +36,9 @@ local function findSafeHorse()
     animals = animals and animals:FindFirstChild("Animals")
     if animals then
         for _, obj in ipairs(animals:GetChildren()) do
-            if obj:IsA("Model") and obj.Name == "Model_Horse" and not obj.Parent then
+            if obj:IsA("Model") and obj.Name == "Model_Horse" then
                 local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                if part and not outlawNearby(part.Position) then
+                if part then
                     return obj, part.Position
                 end
             end
@@ -139,12 +106,13 @@ end
 local function claimHorseLoop(model, doMaximGunLoop)
     local lastPos, storeTries = nil, 0
     local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-    if not model or model.Parent or not part or outlawNearby(part.Position) then
+    if not model or not part then
         return nil, false
     end
-    while model and not model.Parent and part and not outlawNearby(part.Position) do
+    while model and part do
         if doMaximGunLoop then ensureSeatedInMaximGun() end
         local pos = part.Position
+        -- Only allow max 4 blocks above the horse to attempt storing
         if math.abs(hrp.Position.Y - pos.Y) > 4 then
             hrp.CFrame = CFrame.new(pos.X, pos.Y + 4, pos.Z)
         else
@@ -205,7 +173,7 @@ local function searchHorseAtLocations()
             hrp.CFrame = CFrame.new(loc.X, 50, loc.Z)
             task.wait(0.7)
         end
-        local horseModel, horsePos = findSafeHorse()
+        local horseModel, horsePos = findAnyHorse()
         if horseModel and horsePos then
             return horseModel, horsePos
         end
