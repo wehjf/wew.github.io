@@ -8,85 +8,7 @@ local maximGunTP = Vector3.new(57, -5, -9000)
 local afterHorseTP = Vector3.new(147, 10, 29928)
 local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 20
 
-local pathPoints = {
-    Vector3.new(13.66, 20, 29620.67), Vector3.new(-15.98, 20, 28227.97), Vector3.new(-63.54, 20, 26911.59),
-    Vector3.new(-15.98, 20, 28227.97), Vector3.new(-75.71, 20, 25558.11), Vector3.new(-49.51, 20, 24038.67),
-    Vector3.new(-34.48, 20, 22780.89), Vector3.new(-63.71, 20, 21477.32), Vector3.new(-84.23, 20, 19970.94),
-    Vector3.new(-84.76, 20, 18676.13), Vector3.new(-87.32, 20, 17246.92), Vector3.new(-95.48, 20, 15988.29),
-    Vector3.new(-93.76, 20, 14597.43), Vector3.new(-86.29, 20, 13223.68), Vector3.new(-97.56, 20, 11824.61),
-    Vector3.new(-92.71, 20, 10398.51), Vector3.new(-98.43, 20, 9092.45), Vector3.new(-90.89, 20, 7741.15),
-    Vector3.new(-86.46, 20, 6482.59), Vector3.new(-77.49, 20, 5081.21), Vector3.new(-73.84, 20, 3660.66),
-    Vector3.new(-73.84, 20, 2297.51), Vector3.new(-76.56, 20, 933.68), Vector3.new(-81.48, 20, -429.93),
-    Vector3.new(-83.47, 20, -1683.45), Vector3.new(-94.18, 20, -3035.25), Vector3.new(-109.96, 20, -4317.15),
-    Vector3.new(-119.63, 20, -5667.43), Vector3.new(-118.63, 20, -6942.88), Vector3.new(-118.09, 20, -8288.66),
-    Vector3.new(-132.12, 20, -9690.39), Vector3.new(-122.83, 20, -11051.38), Vector3.new(-117.53, 20, -12412.74),
-    Vector3.new(-119.81, 20, -13762.14), Vector3.new(-126.27, 20, -15106.33), Vector3.new(-134.45, 20, -16563.82),
-    Vector3.new(-129.85, 20, -17884.73), Vector3.new(-127.23, 20, -19234.89), Vector3.new(-133.49, 20, -20584.07),
-    Vector3.new(-137.89, 20, -21933.47), Vector3.new(-139.93, 20, -23272.51), Vector3.new(-144.12, 20, -24612.54),
-    Vector3.new(-142.93, 20, -25962.13), Vector3.new(-149.21, 20, -27301.58), Vector3.new(-156.19, 20, -28640.93),
-    Vector3.new(-164.87, 20, -29990.78), Vector3.new(-177.65, 20, -31340.21), Vector3.new(-184.67, 20, -32689.24),
-    Vector3.new(-208.92, 20, -34027.44), Vector3.new(-227.96, 20, -35376.88), Vector3.new(-239.45, 20, -36726.59),
-    Vector3.new(-250.48, 20, -38075.91), Vector3.new(-260.28, 20, -39425.56), Vector3.new(-274.86, 20, -40764.67),
-    Vector3.new(-297.45, 20, -42103.61), Vector3.new(-321.64, 20, -43442.59), Vector3.new(-356.78, 20, -44771.52),
-    Vector3.new(-387.68, 20, -46100.94), Vector3.new(-415.83, 20, -47429.85), Vector3.new(-452.39, 20, -49407.44),
-}
-
-local function getSackCount()
-    local c = plr.Character
-    local s = c and c:FindFirstChild("Sack") or plr.Backpack:FindFirstChild("Sack")
-    local l = s and s:FindFirstChild("BillboardGui") and s.BillboardGui:FindFirstChild("TextLabel")
-    return l and tonumber(l.Text:match("^(%d+)/")) or nil
-end
-
-local function destroyBookcases()
-    local castle = Workspace:FindFirstChild("VampireCastle")
-    if castle then
-        for _, d in ipairs(castle:GetDescendants()) do
-            if d:IsA("Model") and d.Name == "Bookcase" then d:Destroy() end
-        end
-    end
-end
-
-local function getMaximGunSeat()
-    destroyBookcases()
-    local ri = Workspace:FindFirstChild("RuntimeItems")
-    for _, g in ipairs(ri and ri:GetChildren() or {}) do
-        if g.Name == "MaximGun" then
-            return g:FindFirstChildWhichIsA("VehicleSeat")
-        end
-    end
-end
-
-local function ensureSeatedInMaximGun()
-    local seat = getMaximGunSeat()
-    if seat and humanoid.SeatPart ~= seat then
-        repeat
-            hrp.CFrame = seat.CFrame
-            seat.Disabled = false
-            task.wait(0.1)
-        until humanoid.SeatPart == seat or not seat.Parent
-    end
-end
-
-local function sitAndJumpOutSeat(seat)
-    local jumped = false
-    while true do
-        if humanoid.SeatPart ~= seat then
-            hrp.CFrame = seat.CFrame; task.wait(0.1)
-        else
-            local weld = seat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
-                if not jumped then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    task.wait(0.15)
-                    hrp.CFrame = seat.CFrame
-                    jumped = true
-                else break end
-            end
-        end
-    end
-end
-
+-- --- HORSE SEARCH ---
 local function outlawNearby(pos)
     local outlawNames = { "Model_RifleOutlaw", "Model_RevolverOutlaw" }
     -- Animals
@@ -152,9 +74,67 @@ local function findSafeHorse()
     return nil, nil
 end
 
+-- --- SACK COUNT ---
+local function getSackCount()
+    local c = plr.Character
+    local s = c and c:FindFirstChild("Sack") or plr.Backpack:FindFirstChild("Sack")
+    local l = s and s:FindFirstChild("BillboardGui") and s.BillboardGui:FindFirstChild("TextLabel")
+    return l and tonumber(l.Text:match("^(%d+)/")) or nil
+end
+
+-- --- MAXIM GUN LOGIC ---
+local function destroyBookcases()
+    local castle = Workspace:FindFirstChild("VampireCastle")
+    if castle then
+        for _, d in ipairs(castle:GetDescendants()) do
+            if d:IsA("Model") and d.Name == "Bookcase" then d:Destroy() end
+        end
+    end
+end
+
+local function getMaximGunSeat()
+    destroyBookcases()
+    local ri = Workspace:FindFirstChild("RuntimeItems")
+    for _, g in ipairs(ri and ri:GetChildren() or {}) do
+        if g.Name == "MaximGun" then
+            return g:FindFirstChildWhichIsA("VehicleSeat")
+        end
+    end
+end
+
+local function ensureSeatedInMaximGun()
+    local seat = getMaximGunSeat()
+    if seat and humanoid.SeatPart ~= seat then
+        repeat
+            hrp.CFrame = seat.CFrame
+            seat.Disabled = false
+            task.wait(0.1)
+        until humanoid.SeatPart == seat or not seat.Parent
+    end
+end
+
+local function sitAndJumpOutSeat(seat)
+    local jumped = false
+    while true do
+        if humanoid.SeatPart ~= seat then
+            hrp.CFrame = seat.CFrame; task.wait(0.1)
+        else
+            local weld = seat:FindFirstChild("SeatWeld")
+            if weld and weld.Part1 and weld.Part1:IsDescendantOf(plr.Character) then
+                if not jumped then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    task.wait(0.15)
+                    hrp.CFrame = seat.CFrame
+                    jumped = true
+                else break end
+            end
+        end
+    end
+end
+
+-- --- CLAIM LOGIC ---
 local function claimHorseLoop(model, doMaximGunLoop)
     local lastPos, storeTries = nil, 0
-    -- Only operate if model has no parent and no outlaw nearby!
     local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
     if not model or model.Parent or not part or outlawNearby(part.Position) then
         return nil, false
@@ -162,10 +142,14 @@ local function claimHorseLoop(model, doMaximGunLoop)
     while model and not model.Parent and part and not outlawNearby(part.Position) do
         if doMaximGunLoop then ensureSeatedInMaximGun() end
         local pos = part.Position
-        if not lastPos or (pos - lastPos).Magnitude > 2 then
-            hrp.CFrame = CFrame.new(pos.X, pos.Y + 2, pos.Z)
-            lastPos = pos
+        -- Only allow max 4 blocks above the horse to attempt storing
+        local targetY = math.max(pos.Y + 2, pos.Y + 4)
+        if math.abs(hrp.Position.Y - pos.Y) > 4 then
+            hrp.CFrame = CFrame.new(pos.X, pos.Y + 4, pos.Z)
+        else
+            hrp.CFrame = CFrame.new(pos.X, hrp.Position.Y, pos.Z)
         end
+        lastPos = pos
         humanoid.Jump = true
         ReplicatedStorage.Remotes.StoreItem:FireServer(model)
         storeTries = storeTries + 1
@@ -176,6 +160,7 @@ local function claimHorseLoop(model, doMaximGunLoop)
     return lastPos, false
 end
 
+-- --- SACK USAGE ---
 local function UseSack()
     local sack = plr.Backpack:FindFirstChild("Sack")
     if sack then
@@ -189,6 +174,7 @@ task.spawn(function()
     UseSack()
 end)
 
+-- --- ROBUST TP AFTER HORSE ---
 local function robustAfterHorseTP()
     local stayStart = nil
     while true do
@@ -206,8 +192,9 @@ local function robustAfterHorseTP()
     end
 end
 
+-- --- MAIN ROUTINE ---
 local function startRoutine()
-    -- Initial maxim gun sit/jump-out logic
+    -- Step 1: Maxim Gun sit/jump logic
     while true do
         hrp.CFrame = CFrame.new(maximGunTP)
         task.wait(0.5)
@@ -220,46 +207,49 @@ local function startRoutine()
         task.wait(1)
     end
 
-    -- After initial sit/jump, start pathing and MaximGun seat maintenance after 3rd point
-    local finished = false
-    local startedMaximGunLoop = false
-    for i, pt in ipairs(pathPoints) do
-        hrp.CFrame = CFrame.new(pt)
-        -- Load the fly script at the 1st point
-        if i == 1 and not startedMaximGunLoop then
-            startedMaximGunLoop = true
-            task.spawn(function()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
-            end)
-        end
-        -- Only start MaximGun seat maintenance and horse tracking after 3rd localpoint
-        local doMaximGunLoop = i > 3
-        if doMaximGunLoop then
-            -- Only try to find a SAFE horse (no parent, no outlaw nearby) at each point after 3rd
-            local t0 = tick()
-            local model, pos = nil, nil
-            while tick() - t0 < tpInterval do
-                ensureSeatedInMaximGun()
-                model, pos = findSafeHorse()
-                if model and pos then break end
-                task.wait(horseScanInterval)
-            end
-            if model and pos then
-                local horseLastPos, horseClaimed = claimHorseLoop(model, true)
-                if horseClaimed and horseLastPos then
-                    finished = true
-                    task.wait(2)
-                    hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
-                    task.wait(2)
-                    robustAfterHorseTP()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
-                    break
-                end
-            end
-        end
-        if finished then break end
+    -- Step 2: Find first valid horse and mark its position
+    local horseModel, horsePos = findSafeHorse()
+    if not horseModel or not horsePos then
+        warn("No valid horse found!")
+        return
     end
-    if not finished then
+
+    -- Step 3: Load fly
+    task.spawn(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/fly.github.io/refs/heads/main/fly.lua"))()
+    end)
+
+    -- Step 4: Back-and-forth TP farming
+    local horseCFrame = CFrame.new(horsePos.X, 50, horsePos.Z)
+    local tpForward = 10000
+    local delayTime = 1.5
+    for i = 1, 8 do
+        if i % 2 == 1 then
+            -- Go 10k forward on Z
+            hrp.CFrame = CFrame.new(horsePos.X, 50, horsePos.Z + tpForward)
+        else
+            -- Return to horse location
+            hrp.CFrame = horseCFrame
+        end
+        task.wait(delayTime)
+    end
+    -- Final return to horse location for safety
+    hrp.CFrame = horseCFrame
+    task.wait(0.5)
+
+    -- Step 5: Claim horse with maxim gun seat maintenance
+    local horseLastPos, horseClaimed = claimHorseLoop(horseModel, true)
+    -- Maximgun resit logic, then afterHorseTP, then fly end, then finish
+    if horseClaimed and horseLastPos then
+        -- If we're off the maxim gun, get back on
+        ensureSeatedInMaximGun()
+        task.wait(2)
+        hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
+        task.wait(2)
+        robustAfterHorseTP()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
+        -- END
+    else
         task.wait(retryDelay)
         startRoutine()
     end
