@@ -1,3 +1,4 @@
+-- SETTINGS & LOCATIONS
 local Players, Workspace, ReplicatedStorage = game:GetService("Players"), game:GetService("Workspace"), game:GetService("ReplicatedStorage")
 local plr = Players.LocalPlayer
 local character = plr.Character or plr.CharacterAdded:Wait()
@@ -174,7 +175,7 @@ local function searchHorseAtLocations()
     for idx, loc in ipairs(horseSearchLocations) do
         if idx ~= 1 then
             hrp.CFrame = CFrame.new(loc.X, 50, loc.Z)
-            task.wait(2)
+            task.wait(tpInterval)
         end
         local horseModel, horsePos = findAnyHorse()
         if horseModel and horsePos then
@@ -201,8 +202,9 @@ local function startRoutine()
     -- Step 2: Search for horse at specific locations, starting fly at the first spot
     local horseModel, horsePos = searchHorseAtLocations()
     if not horseModel or not horsePos then
-        warn("No valid horse found at any location!")
-        return
+        warn("No valid horse found at any location! Retrying in " .. retryDelay .. " seconds...")
+        task.wait(retryDelay)
+        return startRoutine()
     end
 
     -- Step 3: Back-and-forth TP farming
@@ -230,6 +232,7 @@ local function startRoutine()
         robustAfterHorseTP()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ringtaa/unfly.github.io/refs/heads/main/unfly.lua"))()
     else
+        warn("Failed to claim horse! Retrying in " .. retryDelay .. " seconds...")
         task.wait(retryDelay)
         startRoutine()
     end
