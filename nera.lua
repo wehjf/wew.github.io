@@ -6,7 +6,7 @@ local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitFo
 
 local maximGunTP = Vector3.new(57, -5, -9000)
 local afterHorseTP = Vector3.new(147, 10, 29928)
-local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 20
+local tpInterval, horseScanInterval, retryDelay = 2, 0.15, 8
 
 local horseSearchLocations = {
     Vector3.new(-119.63, 20, -5667.43),
