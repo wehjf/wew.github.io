@@ -221,7 +221,7 @@ local function startRoutine()
     local horseLastPos, horseClaimed = claimHorseLoop(horseModel, true)
     if horseClaimed and horseLastPos then
         ensureSeatedInMaximGun()
-        task.wait(2)
+        task.wait(1)
         hrp.CFrame = CFrame.new(horseLastPos.X, horseLastPos.Y + 80, horseLastPos.Z)
         task.wait(2)
         robustAfterHorseTP()
