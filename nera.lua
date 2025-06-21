@@ -206,7 +206,7 @@ local function startRoutine()
     local horseCFrame = CFrame.new(horsePos.X, 50, horsePos.Z)
     local tpForward = 10000
     local delayTime = 1.5
-    for i = 1, 8 do
+    for i = 1, 4 do
         if i % 2 == 1 then
             hrp.CFrame = CFrame.new(horsePos.X, 50, horsePos.Z + tpForward)
         else
