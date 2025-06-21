@@ -171,7 +171,7 @@ local function searchHorseAtLocations()
     for idx, loc in ipairs(horseSearchLocations) do
         if idx ~= 1 then
             hrp.CFrame = CFrame.new(loc.X, 50, loc.Z)
-            task.wait(0.7)
+            task.wait(2)
         end
         local horseModel, horsePos = findAnyHorse()
         if horseModel and horsePos then
